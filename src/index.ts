@@ -44,6 +44,11 @@ function printHelp(): void {
   console.log("  --version, -v         Show the CLI version");
   console.log("  --help, -h            Show this help message");
   console.log();
+  console.log("Environment:");
+  console.log(
+    "  SORA_NO_UPDATE_CHECK  Set to disable the npm update check on every run"
+  );
+  console.log();
   console.log("Examples:");
   console.log("  npx @soralabsoss/sora-cli add text-effect");
   console.log(

@@ -44,6 +44,8 @@ Each Sora Labs product registers its base URL in [`src/constants.ts`](src/consta
 
 Since components are copied into your project rather than installed as a package, `sora diff` is the way to check whether the registry has changed a component since you installed it — it reports differences without writing anything; re-run `add <component> --force --yes` to apply an update.
 
+Every command also does a quick, non-blocking check against npm for a newer published version (printed to stderr, never mixed into `--json` output). Set `SORA_NO_UPDATE_CHECK=1` to disable it, e.g. in CI.
+
 ## Development
 
 ```bash
