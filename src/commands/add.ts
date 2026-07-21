@@ -1,9 +1,17 @@
-import { confirm, isCancel, select, spinner } from "@clack/prompts";
+import {
+  confirm,
+  isCancel,
+  note,
+  outro,
+  select,
+  spinner,
+} from "@clack/prompts";
 import { searchMultiselect } from "../prompts/search-multiselect.js";
 import type { PackageManager, ProjectConfig, RegistryItem } from "../types.js";
-import { active, bar, done, error, header, success } from "../utils/colors.js";
-import { detectConfig } from "../utils/detect.js";
+import { bar, done, error, header } from "../utils/colors.js";
+import { detectConfig, getInstalledDependencyNames } from "../utils/detect.js";
 import {
+  assertSafeDependencies,
   ensureUtils,
   installDependencies,
   writeComponent,
@@ -24,7 +32,17 @@ interface AddOptions {
 }
 
 async function pickComponents(registry?: string): Promise<string[] | null> {
-  const availableComponents = await getAvailableComponents(registry);
+  const loadingSpinner = spinner();
+  loadingSpinner.start("Fetching available components...");
+  let availableComponents: string[];
+  try {
+    availableComponents = await getAvailableComponents(registry);
+  } catch (err) {
+    loadingSpinner.stop("Failed to fetch available components", 1);
+    throw err;
+  }
+  loadingSpinner.stop("Fetched available components");
+
   const items = availableComponents.map((name) => ({
     category: "Components",
     label: name,
@@ -51,11 +69,12 @@ async function resolveComponents(
   names: string[],
   registry?: string
 ): Promise<RegistryItem[] | null> {
-  active("Resolving dependencies...");
-  bar();
+  const loadingSpinner = spinner();
+  loadingSpinner.start("Resolving dependencies...");
 
   const allComponents: RegistryItem[] = [];
   const seen = new Set<string>();
+  const trees: Parameters<typeof printTree>[0][] = [];
 
   // Sequential by design: `seen` must be updated between fetches so
   // shared dependencies across the requested components aren't
@@ -66,6 +85,7 @@ async function resolveComponents(
     }
 
     try {
+      loadingSpinner.message(`Resolving ${name}...`);
       // biome-ignore lint/performance/noAwaitInLoops: see comment above
       const tree = await resolveTree(name, registry);
       const flat = flattenTree(tree);
@@ -77,13 +97,19 @@ async function resolveComponents(
         }
       }
 
-      printTree(tree);
+      trees.push(tree);
     } catch (err) {
-      error(`Failed to resolve ${name}: ${(err as Error).message}`);
+      loadingSpinner.stop(`Failed to resolve ${name}`, 1);
+      error((err as Error).message);
       return null;
     }
   }
 
+  loadingSpinner.stop("Resolved dependencies");
+  bar();
+  for (const tree of trees) {
+    printTree(tree);
+  }
   bar();
   return allComponents;
 }
@@ -102,14 +128,26 @@ async function collectDepsAndConfirm(
     item.registryDependencies?.includes("utils")
   );
 
-  const { dependencies, devDependencies } = collectNpmDeps(allComponents);
+  const collected = collectNpmDeps(allComponents);
   if (needsUtils) {
     for (const dep of ["clsx", "tailwind-merge"]) {
-      if (!dependencies.includes(dep)) {
-        dependencies.push(dep);
+      if (!collected.dependencies.includes(dep)) {
+        collected.dependencies.push(dep);
       }
     }
   }
+  assertSafeDependencies([
+    ...collected.dependencies,
+    ...collected.devDependencies,
+  ]);
+
+  const alreadyInstalled = getInstalledDependencyNames();
+  const dependencies = collected.dependencies.filter(
+    (dep) => !alreadyInstalled.has(dep)
+  );
+  const devDependencies = collected.devDependencies.filter(
+    (dep) => !alreadyInstalled.has(dep)
+  );
 
   if (!skipConfirm) {
     const confirmed = await confirm({
@@ -206,16 +244,19 @@ function installNpmDependencies(
     return;
   }
 
-  loadingSpinner.stop("Failed to install dependencies");
+  loadingSpinner.stop("Failed to install dependencies", 1);
+
+  const manualCommands: string[] = [];
   if (dependencies.length > 0) {
-    bar(`Run manually: ${packageManager} add ${dependencies.join(" ")}`);
+    manualCommands.push(`${packageManager} add ${dependencies.join(" ")}`);
   }
   if (devDependencies.length > 0) {
     const devFlag = packageManager === "bun" ? "-d" : "-D";
-    bar(
-      `Run manually: ${packageManager} add ${devFlag} ${devDependencies.join(" ")}`
+    manualCommands.push(
+      `${packageManager} add ${devFlag} ${devDependencies.join(" ")}`
     );
   }
+  note(manualCommands.join("\n"), "Run manually");
 }
 
 /**
@@ -276,9 +317,8 @@ export async function add(
   await writeComponents(allComponents, config, options.force ?? false);
   installNpmDependencies(dependencies, devDependencies, config.packageManager);
 
-  console.log();
   const totalComponents = allComponents.length;
-  success(
+  outro(
     `Done! ${totalComponents} component${totalComponents > 1 ? "s" : ""} installed.`
   );
   return true;

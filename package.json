@@ -21,7 +21,7 @@
     "prepare": "lefthook install"
   },
   "type": "module",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "CLI to install Sora UI (and future Sora Labs) components into your project",
   "license": "MIT",
   "author": "Axyl1410",

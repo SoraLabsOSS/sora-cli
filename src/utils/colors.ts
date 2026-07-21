@@ -19,10 +19,6 @@ export function error(message: string): void {
   console.error(pc.red("✗"), message);
 }
 
-export function success(message: string): void {
-  console.log(pc.bold(pc.green(message)));
-}
-
 export function bar(message?: string): void {
   console.log(pc.dim(message ? `  ${message}` : "│"));
 }

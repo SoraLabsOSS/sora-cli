@@ -1,8 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_COMPONENT_PATH } from "../constants.js";
-import type { PackageManager, ProjectConfig, RegistryItem } from "../types.js";
+import type {
+  ComponentAliases,
+  PackageManager,
+  ProjectConfig,
+  RegistryItem,
+} from "../types.js";
 
 export type OverwriteChoice = "overwrite" | "skip" | "all";
 
@@ -35,6 +40,29 @@ interface WriteResult {
 }
 
 const COMPONENT_PREFIX = `${DEFAULT_COMPONENT_PATH}/`;
+
+const UTILS_IMPORT = /(["'])@\/lib\/utils(["'])/g;
+const HOOKS_IMPORT = /(["'])@\/hooks\//g;
+const COMPONENTS_IMPORT = /(["'])@\/components\//g;
+const LIB_IMPORT = /(["'])@\/lib\//g;
+
+/**
+ * Registry content is authored against the "@/" import convention
+ * ("@/components/...", "@/hooks/...", "@/lib/...", "@/lib/utils"). Rewrite
+ * each to the project's actual configured alias for that category —
+ * they don't always share one root (e.g. a workspace package can point
+ * "hooks" and "lib" at different places), so this must stay per-category
+ * rather than one blanket prefix swap. The `cn` helper import is matched
+ * first and separately since `aliases.utils` may not just be
+ * `${aliases.lib}/utils`.
+ */
+function rewriteAliases(content: string, aliases: ComponentAliases): string {
+  return content
+    .replace(UTILS_IMPORT, `$1${aliases.utils}$2`)
+    .replace(HOOKS_IMPORT, `$1${aliases.hooks}/`)
+    .replace(COMPONENTS_IMPORT, `$1${aliases.components}/`)
+    .replace(LIB_IMPORT, `$1${aliases.lib}/`);
+}
 
 function resolveTarget(
   file: RegistryItem["files"][number],
@@ -72,8 +100,18 @@ export async function writeComponent(
 
     const relativeTarget = resolveTarget(file, item, config);
     const destPath = join(process.cwd(), relativeTarget);
+    const newContent = rewriteAliases(file.content, config.aliases);
+    const fileExists = existsSync(destPath);
 
-    if (existsSync(destPath) && !overwrite) {
+    if (fileExists) {
+      const currentContent = readFileSync(destPath, "utf8");
+      if (currentContent === newContent) {
+        // Already up to date — don't nag the user about it.
+        continue;
+      }
+    }
+
+    if (fileExists && !overwrite) {
       // biome-ignore lint/performance/noAwaitInLoops: prompts must run one at a time, not in parallel
       const choice = await onConflict(relativeTarget);
       if (choice === "skip") {
@@ -86,7 +124,7 @@ export async function writeComponent(
     }
 
     mkdirSync(dirname(destPath), { recursive: true });
-    writeFileSync(destPath, file.content, "utf8");
+    writeFileSync(destPath, newContent, "utf8");
     written.push(relativeTarget);
   }
 
@@ -100,11 +138,27 @@ const INSTALL_ARGS: Record<PackageManager, { add: string; dev: string }> = {
   yarn: { add: "add", dev: "-D" },
 };
 
+/**
+ * Dependency names come from the registry (remote, untrusted input) and
+ * get passed straight into `spawnSync(packageManager, [add, ...deps])` —
+ * reject anything that could be interpreted as a flag by the package
+ * manager instead of a package name (e.g. a malicious "-–registry=…").
+ */
+export function assertSafeDependencies(deps: string[]): void {
+  for (const dep of deps) {
+    if (dep.startsWith("-")) {
+      throw new Error(`Registry returned an unsafe dependency name: "${dep}"`);
+    }
+  }
+}
+
 export function installDependencies(
   dependencies: string[],
   devDependencies: string[],
   packageManager: PackageManager
 ): boolean {
+  assertSafeDependencies([...dependencies, ...devDependencies]);
+
   const { add, dev } = INSTALL_ARGS[packageManager];
 
   if (dependencies.length > 0) {

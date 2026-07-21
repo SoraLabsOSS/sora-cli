@@ -18,15 +18,104 @@ function resolveRegistryUrl(registry?: string): string {
   return url;
 }
 
-export async function fetchRegistry(registry?: string): Promise<Registry> {
-  const baseUrl = resolveRegistryUrl(registry);
-  const response = await fetch(`${baseUrl}/r/registry.json`);
+async function tryExtractErrorDetail(
+  response: Response
+): Promise<string | null> {
+  try {
+    const body = (await response.clone().json()) as {
+      detail?: string;
+      error?: string;
+      message?: string;
+    };
+    return body.message ?? body.error ?? body.detail ?? null;
+  } catch {
+    return null;
+  }
+}
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch registry: ${response.status}`);
+/**
+ * Fetches and parses JSON from a registry URL, turning the ways this can
+ * fail (network down, non-2xx response, invalid JSON, unexpected shape)
+ * into a message that says what happened and what to do about it, rather
+ * than a raw `fetch failed` or a crash deep inside tree resolution.
+ */
+async function fetchJson<T>(
+  url: string,
+  notFoundMessage: string,
+  validate: (data: unknown) => asserts data is T
+): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    const cause = (
+      err as { cause?: { code?: string; message?: string } } | undefined
+    )?.cause;
+    const reason = cause?.code ?? cause?.message ?? (err as Error).message;
+    throw new Error(
+      `Could not reach ${url} (${reason}). Check your network connection and try again.`,
+      { cause: err }
+    );
   }
 
-  return (await response.json()) as Registry;
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(notFoundMessage);
+    }
+    const detail = await tryExtractErrorDetail(response);
+    throw new Error(
+      `Registry request to ${url} failed: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ""}`
+    );
+  }
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch (err) {
+    throw new Error(`Registry at ${url} returned invalid JSON.`, {
+      cause: err,
+    });
+  }
+
+  validate(data);
+  return data;
+}
+
+function assertRegistry(data: unknown): asserts data is Registry {
+  const candidate = data as Partial<Registry> | null;
+  if (
+    !candidate ||
+    typeof candidate !== "object" ||
+    typeof candidate.name !== "string" ||
+    !Array.isArray(candidate.items)
+  ) {
+    throw new Error(
+      'Malformed registry response: expected an object with "name" and an "items" array.'
+    );
+  }
+}
+
+function assertRegistryItem(data: unknown): asserts data is RegistryItem {
+  const candidate = data as Partial<RegistryItem> | null;
+  if (
+    !candidate ||
+    typeof candidate !== "object" ||
+    typeof candidate.name !== "string" ||
+    !Array.isArray(candidate.files)
+  ) {
+    throw new Error(
+      'Malformed component response: expected an object with "name" and a "files" array.'
+    );
+  }
+}
+
+export async function fetchRegistry(registry?: string): Promise<Registry> {
+  const baseUrl = resolveRegistryUrl(registry);
+  return await fetchJson(
+    `${baseUrl}/r/registry.json`,
+    `Registry not found at ${baseUrl}. Check the registry URL is correct.`,
+    assertRegistry
+  );
 }
 
 export async function fetchComponent(
@@ -34,13 +123,11 @@ export async function fetchComponent(
   registry?: string
 ): Promise<RegistryItem> {
   const baseUrl = resolveRegistryUrl(registry);
-  const response = await fetch(`${baseUrl}/r/${name}.json`);
-
-  if (!response.ok) {
-    throw new Error(`Component "${name}" not found`);
-  }
-
-  return (await response.json()) as RegistryItem;
+  return await fetchJson(
+    `${baseUrl}/r/${name}.json`,
+    `Component "${name}" not found. Run "sora list" to see available components.`,
+    assertRegistryItem
+  );
 }
 
 export async function getAvailableComponents(

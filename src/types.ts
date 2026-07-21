@@ -32,8 +32,20 @@ export interface Registry {
 
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
+/**
+ * Import alias per shadcn `components.json` category. Registry content is
+ * authored against "@/components/...", "@/hooks/...", "@/lib/..." and
+ * "@/lib/utils" — these are what each of those gets rewritten to on write.
+ */
+export interface ComponentAliases {
+  components: string;
+  hooks: string;
+  lib: string;
+  utils: string;
+}
+
 export interface ProjectConfig {
-  alias: string;
+  aliases: ComponentAliases;
   componentPath: string;
   packageManager: PackageManager;
   srcDir: string;

@@ -1,3 +1,4 @@
+import { spinner } from "@clack/prompts";
 import { done, header } from "../utils/colors.js";
 import { fetchRegistry } from "../utils/registry.js";
 
@@ -7,7 +8,17 @@ interface ListOptions {
 }
 
 export async function list(options: ListOptions): Promise<void> {
-  const data = await fetchRegistry(options.registry);
+  const loadingSpinner = options.json ? null : spinner();
+  loadingSpinner?.start("Fetching registry...");
+  let data: Awaited<ReturnType<typeof fetchRegistry>>;
+  try {
+    data = await fetchRegistry(options.registry);
+  } catch (err) {
+    loadingSpinner?.stop("Failed to fetch registry", 1);
+    throw err;
+  }
+  loadingSpinner?.stop("Fetched registry");
+
   const components = data.items.filter(
     (item) => item.type === "registry:ui" && !item.name.startsWith("demo-")
   );
