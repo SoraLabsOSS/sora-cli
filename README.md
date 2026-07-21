@@ -5,10 +5,10 @@ CLI to install [Sora UI](https://ui.soralabs.io.vn) components — and, over tim
 ## Usage
 
 ```bash
-npx @soralabsoss/sora-cli add rolling-text
+npx @soralabsoss/sora-cli add text-effect
 
 # multiple components
-npx @soralabsoss/sora-cli add rolling-text draw-underline-link
+npx @soralabsoss/sora-cli add text-effect draw-underline-link
 
 # interactive picker
 npx @soralabsoss/sora-cli add
@@ -20,9 +20,9 @@ npx @soralabsoss/sora-cli list
 ### Options
 
 ```bash
-npx @soralabsoss/sora-cli add rolling-text --path src/components/ui
-npx @soralabsoss/sora-cli add rolling-text --force
-npx @soralabsoss/sora-cli add rolling-text --registry ui   # default; other products register here later
+npx @soralabsoss/sora-cli add text-effect --path src/components/ui
+npx @soralabsoss/sora-cli add text-effect --force
+npx @soralabsoss/sora-cli add text-effect --registry ui   # default; other products register here later
 ```
 
 ## How it works
