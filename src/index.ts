@@ -21,8 +21,8 @@ function printHelp(): void {
   console.log("  --help                Show this help message");
   console.log();
   console.log("Examples:");
-  console.log("  npx @soralabsoss/sora-cli add rolling-text");
-  console.log("  npx @soralabsoss/sora-cli add rolling-text draw-underline-link");
+  console.log("  npx @soralabsoss/sora-cli add text-effect");
+  console.log("  npx @soralabsoss/sora-cli add text-effect draw-underline-link");
   console.log("  npx @soralabsoss/sora-cli add                         # Interactive mode");
   console.log("  npx @soralabsoss/sora-cli list");
 }

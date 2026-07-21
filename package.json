@@ -1,6 +1,6 @@
 {
   "name": "@soralabsoss/sora-cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CLI to install Sora UI (and future Sora Labs) components into your project",
   "type": "module",
   "license": "MIT",

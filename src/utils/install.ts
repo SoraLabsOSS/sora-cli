@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { DEFAULT_COMPONENT_PATH } from "../constants.js";
 import type { PackageManager, ProjectConfig, RegistryItem } from "../types.js";
 
 export type OverwriteChoice = "overwrite" | "skip" | "all";
@@ -47,10 +48,13 @@ export async function writeComponent(
       continue;
     }
 
+    const componentPrefix = `${DEFAULT_COMPONENT_PATH}/`;
     const relativeTarget = file.target
-      ? config.srcDir
-        ? `${config.srcDir}/${file.target}`
-        : file.target
+      ? file.target.startsWith(componentPrefix)
+        ? `${config.componentPath}/${file.target.slice(componentPrefix.length)}`
+        : config.srcDir
+          ? `${config.srcDir}/${file.target}`
+          : file.target
       : `${config.componentPath}/${item.name}.tsx`;
     const destPath = join(process.cwd(), relativeTarget);
 
