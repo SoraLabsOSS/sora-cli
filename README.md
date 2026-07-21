@@ -1,28 +1,28 @@
-# sora-cli
+# @soralabsoss/sora-cli
 
 CLI to install [Sora UI](https://ui.soralabs.io.vn) components — and, over time, components from other Sora Labs products (Sora Studio, Sora Lattice) — into your project.
 
 ## Usage
 
 ```bash
-npx sora-cli add rolling-text
+npx @soralabsoss/sora-cli add rolling-text
 
 # multiple components
-npx sora-cli add rolling-text draw-underline-link
+npx @soralabsoss/sora-cli add rolling-text draw-underline-link
 
 # interactive picker
-npx sora-cli add
+npx @soralabsoss/sora-cli add
 
 # list available components
-npx sora-cli list
+npx @soralabsoss/sora-cli list
 ```
 
 ### Options
 
 ```bash
-npx sora-cli add rolling-text --path src/components/ui
-npx sora-cli add rolling-text --force
-npx sora-cli add rolling-text --registry ui   # default; other products register here later
+npx @soralabsoss/sora-cli add rolling-text --path src/components/ui
+npx @soralabsoss/sora-cli add rolling-text --force
+npx @soralabsoss/sora-cli add rolling-text --registry ui   # default; other products register here later
 ```
 
 ## How it works

@@ -7,7 +7,7 @@ const command = args[0];
 
 function printHelp(): void {
   header();
-  console.log("Usage: npx sora-cli <command> [options]");
+  console.log("Usage: npx @soralabsoss/sora-cli <command> [options]");
   console.log();
   console.log("Commands:");
   console.log("  add [components...]   Add components to your project");
@@ -21,10 +21,10 @@ function printHelp(): void {
   console.log("  --help                Show this help message");
   console.log();
   console.log("Examples:");
-  console.log("  npx sora-cli add rolling-text");
-  console.log("  npx sora-cli add rolling-text draw-underline-link");
-  console.log("  npx sora-cli add                         # Interactive mode");
-  console.log("  npx sora-cli list");
+  console.log("  npx @soralabsoss/sora-cli add rolling-text");
+  console.log("  npx @soralabsoss/sora-cli add rolling-text draw-underline-link");
+  console.log("  npx @soralabsoss/sora-cli add                         # Interactive mode");
+  console.log("  npx @soralabsoss/sora-cli list");
 }
 
 function parseFlag(argList: string[], flag: string): string | undefined {

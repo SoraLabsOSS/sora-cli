@@ -1,6 +1,6 @@
 {
   "name": "@soralabsoss/sora-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI to install Sora UI (and future Sora Labs) components into your project",
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
   "homepage": "https://ui.soralabs.io.vn",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Axyl1410/sora-cli.git"
+    "url": "git+https://github.com/SoraLabsOSS/sora-cli.git"
   },
   "keywords": ["cli", "components", "ui", "react", "tailwindcss", "motion", "shadcn", "sora"],
   "bin": {
