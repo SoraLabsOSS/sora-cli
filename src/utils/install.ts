@@ -239,10 +239,19 @@ const INSTALL_ARGS: Record<PackageManager, { add: string; dev: string }> = {
  * reject anything that could be interpreted as a flag by the package
  * manager instead of a package name (e.g. a malicious "-–registry=…").
  */
+const UNSAFE_DEPENDENCY_CHARS = /[^a-zA-Z0-9@/._-]/;
+
 export function assertSafeDependencies(deps: string[]): void {
   for (const dep of deps) {
     if (dep.startsWith("-")) {
       throw new Error(`Registry returned an unsafe dependency name: "${dep}"`);
+    }
+    if (
+      dep.length === 0 ||
+      dep.length > 214 ||
+      UNSAFE_DEPENDENCY_CHARS.test(dep)
+    ) {
+      throw new Error(`Registry returned an invalid dependency name: "${dep}"`);
     }
   }
 }
