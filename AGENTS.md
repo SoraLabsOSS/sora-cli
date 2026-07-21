@@ -121,3 +121,39 @@ Biome's linter will catch most issues automatically. Focus your attention on:
 ---
 
 Most formatting and common issues are automatically fixed by Biome. Run `bun x ultracite fix` before committing to ensure compliance.
+
+---
+
+## CLI Design Standards
+
+This project follows the philosophy of the [Command Line Interface Guidelines](https://clig.dev/) — CLIs are human-first interfaces, not just machine-parseable commands. When touching `src/index.ts`, `src/commands/`, or anything that changes what the CLI prints or accepts, keep it consistent with these rules:
+
+### Output streams
+
+- Primary/machine-readable output (e.g. `list --json`) goes to `stdout`. Errors, warnings, and status messages go to `stderr` via `error()` in `src/utils/colors.ts` (uses `console.error`, not `console.log`). Never regress this — piping `sora list --json > out.json` must not leak error text into the file.
+- Human-mode output can be decorated (colors, symbols, ASCII art); `--json` output must be nothing but the JSON.
+
+### Exit codes
+
+- Exit `0` only when the command actually succeeded, including graceful no-ops (user cancelled a confirm prompt, picked zero components). Exit non-zero (`process.exitCode = 1`, or `process.exit(1)` in `main()`'s catch) for real failures: unknown command, unknown component, unknown registry, network errors. Commands that can fail after being invoked (like `add`) should return a `boolean`/throw rather than silently resolving successfully — see `add()` in `src/commands/add.ts`.
+
+### Flags & help
+
+- Every short flag needs a full-length form (`-h`/`--help`, `-v`/`--version`, `-y`/`--yes`). Don't ship a short-only flag.
+- Keep `--help` concise with real usage examples (using actual registry component names, never placeholders that 404).
+- Provide `--version`/`-v`. Inject it at build time (see `tsup.config.ts`'s `define: { __VERSION__ }`) rather than reading `package.json` at runtime, since the published package can be installed anywhere.
+- Prefer flags over new positional arguments, except for the command's natural subject (component names for `add`, matching how `git add <files>` works).
+
+### Interactivity & automation
+
+- Anything that prompts (`@clack/prompts` `confirm`/`select`, the interactive component picker) must have a non-interactive escape hatch. `add` has `--yes`/`-y` to skip the install confirmation and `--force` to skip per-file overwrite prompts — keep both working, and keep them independent (don't conflate "confirm intent" with "overwrite files"). A fully automated call is `add <names> --force --yes`.
+- Test non-interactive flows with `</dev/null` (no TTY) to make sure they don't hang waiting on a prompt that will never resolve in CI.
+
+### Errors
+
+- Error messages should say what failed and why in plain language (`Failed to resolve ${name}: ${message}`, `Unknown registry "${key}". Available: ${available}`), not raw stack traces.
+- Confirm before destructive/irreversible actions (overwriting an existing file) — already the default in `writeComponent`; don't bypass it except via the explicit `--force` flag.
+
+### Verifying changes here
+
+Ultracite/`tsc` catch style and type issues, but not CLI-behavior regressions. After changing flag parsing, output, or exit-code logic, manually verify against a scratch project: check `--help`/`--version` output, an error path (unknown component/registry) actually exits non-zero, and a `--force --yes </dev/null` run completes without hanging.

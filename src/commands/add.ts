@@ -20,6 +20,7 @@ interface AddOptions {
   force?: boolean;
   path?: string;
   registry?: string;
+  yes?: boolean;
 }
 
 async function pickComponents(registry?: string): Promise<string[] | null> {
@@ -94,7 +95,8 @@ interface ConfirmedInstall {
 }
 
 async function collectDepsAndConfirm(
-  allComponents: RegistryItem[]
+  allComponents: RegistryItem[],
+  skipConfirm: boolean
 ): Promise<ConfirmedInstall | null> {
   const needsUtils = allComponents.some((item) =>
     item.registryDependencies?.includes("utils")
@@ -109,16 +111,18 @@ async function collectDepsAndConfirm(
     }
   }
 
-  const confirmed = await confirm({
-    message: buildConfirmMessage(
-      allComponents.length,
-      dependencies.length + devDependencies.length
-    ),
-  });
+  if (!skipConfirm) {
+    const confirmed = await confirm({
+      message: buildConfirmMessage(
+        allComponents.length,
+        dependencies.length + devDependencies.length
+      ),
+    });
 
-  if (isCancel(confirmed) || !confirmed) {
-    done("Installation cancelled.");
-    return null;
+    if (isCancel(confirmed) || !confirmed) {
+      done("Installation cancelled.");
+      return null;
+    }
   }
 
   return { dependencies, devDependencies, needsUtils };
@@ -214,10 +218,16 @@ function installNpmDependencies(
   }
 }
 
+/**
+ * Returns whether the command succeeded. "No components selected" and
+ * "installation cancelled" are graceful no-ops (exit 0); a resolution
+ * failure (unknown component, unknown registry, network error) is a
+ * real failure the caller should exit non-zero for.
+ */
 export async function add(
   componentNames: string[],
   options: AddOptions
-): Promise<void> {
+): Promise<boolean> {
   header();
 
   const config = detectConfig();
@@ -232,7 +242,7 @@ export async function add(
   if (selectedComponents.length === 0) {
     const picked = await pickComponents(options.registry);
     if (!picked) {
-      return;
+      return true;
     }
     selectedComponents = picked;
   }
@@ -242,12 +252,15 @@ export async function add(
     options.registry
   );
   if (!allComponents) {
-    return;
+    return false;
   }
 
-  const confirmResult = await collectDepsAndConfirm(allComponents);
+  const confirmResult = await collectDepsAndConfirm(
+    allComponents,
+    options.yes ?? false
+  );
   if (!confirmResult) {
-    return;
+    return true;
   }
   const { dependencies, devDependencies, needsUtils } = confirmResult;
 
@@ -268,4 +281,5 @@ export async function add(
   success(
     `Done! ${totalComponents} component${totalComponents > 1 ? "s" : ""} installed.`
   );
+  return true;
 }

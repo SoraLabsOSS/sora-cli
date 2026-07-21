@@ -25,6 +25,8 @@ npx @soralabsoss/sora-cli list
 npx @soralabsoss/sora-cli add text-effect --path src/components/ui
 npx @soralabsoss/sora-cli add text-effect --force
 npx @soralabsoss/sora-cli add text-effect --registry ui   # default; other products register here later
+npx @soralabsoss/sora-cli add text-effect --yes           # skip the install confirmation, for scripts/CI
+npx @soralabsoss/sora-cli --version
 ```
 
 ## How it works

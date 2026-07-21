@@ -16,7 +16,7 @@ export function done(message: string): void {
 }
 
 export function error(message: string): void {
-  console.log(pc.red("✗"), message);
+  console.error(pc.red("✗"), message);
 }
 
 export function success(message: string): void {

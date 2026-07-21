@@ -2,6 +2,8 @@ import { add } from "./commands/add.js";
 import { list } from "./commands/list.js";
 import { error, header } from "./utils/colors.js";
 
+declare const __VERSION__: string;
+
 const args = process.argv.slice(2);
 const [command] = args;
 
@@ -19,8 +21,12 @@ function printHelp(): void {
   console.log(
     "  --force               Overwrite existing files without asking"
   );
+  console.log(
+    "  --yes, -y             Skip the install confirmation prompt (for scripts/CI)"
+  );
   console.log("  --json                Output as JSON (list command)");
-  console.log("  --help                Show this help message");
+  console.log("  --version, -v         Show the CLI version");
+  console.log("  --help, -h            Show this help message");
   console.log();
   console.log("Examples:");
   console.log("  npx @soralabsoss/sora-cli add text-effect");
@@ -48,11 +54,17 @@ async function main(): Promise<void> {
       return;
     }
 
+    if (command === "--version" || command === "-v") {
+      console.log(__VERSION__);
+      return;
+    }
+
     if (command === "add") {
       const rest = args.slice(1);
       const path = parseFlag(rest, "--path");
       const registry = parseFlag(rest, "--registry");
       const force = rest.includes("--force") || rest.includes("-f");
+      const yes = rest.includes("--yes") || rest.includes("-y");
 
       const componentArgs = rest.filter((arg, i) => {
         if (arg.startsWith("-")) {
@@ -62,7 +74,10 @@ async function main(): Promise<void> {
         return prev !== "--path" && prev !== "--registry";
       });
 
-      await add(componentArgs, { force, path, registry });
+      const ok = await add(componentArgs, { force, path, registry, yes });
+      if (!ok) {
+        process.exitCode = 1;
+      }
       return;
     }
 
