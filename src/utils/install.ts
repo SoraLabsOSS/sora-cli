@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
-import { DEFAULT_COMPONENT_PATH } from "../constants.js";
 import type {
   ComponentAliases,
   PackageManager,
@@ -45,7 +44,14 @@ interface WriteResult {
   written: string[];
 }
 
-const COMPONENT_PREFIX = `${DEFAULT_COMPONENT_PATH}/`;
+/**
+ * Registry items publish targets like "components/sora-ui/texts/foo.tsx" —
+ * strip whatever the leading "components/<product>/" segment is (not just
+ * "sora-ui" specifically) and remap it onto the user's configured
+ * componentPath, so a future product's registry doesn't need its folder
+ * name hardcoded here to install correctly.
+ */
+const COMPONENT_PATH_PATTERN = /^components\/[^/]+\//;
 
 const UTILS_IMPORT = /(["'])@\/lib\/utils(["'])/g;
 const HOOKS_IMPORT = /(["'])@\/hooks\//g;
@@ -111,8 +117,9 @@ export function resolveTarget(
   if (!file.target) {
     return `${config.componentPath}/${item.name}.tsx`;
   }
-  if (file.target.startsWith(COMPONENT_PREFIX)) {
-    return `${config.componentPath}/${file.target.slice(COMPONENT_PREFIX.length)}`;
+  const match = file.target.match(COMPONENT_PATH_PATTERN);
+  if (match) {
+    return `${config.componentPath}/${file.target.slice(match[0].length)}`;
   }
   if (config.srcDir) {
     return `${config.srcDir}/${file.target}`;

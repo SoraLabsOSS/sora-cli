@@ -17,7 +17,9 @@ function printHelp(): void {
   console.log();
   console.log("Options:");
   console.log("  --path <path>         Custom component install path");
-  console.log("  --registry <name>     Product registry (default: ui)");
+  console.log(
+    "  --registry <name|url> Product registry key (default: ui) or a full registry URL"
+  );
   console.log(
     "  --force               Overwrite existing files without asking"
   );
@@ -46,6 +48,9 @@ function printHelp(): void {
     "  npx @soralabsoss/sora-cli add                         # Interactive mode"
   );
   console.log("  npx @soralabsoss/sora-cli list");
+  console.log(
+    "  npx @soralabsoss/sora-cli add some-item --registry https://your-registry.example.com   # any shadcn-compatible registry"
+  );
 }
 
 function parseFlag(argList: string[], flag: string): string | undefined {

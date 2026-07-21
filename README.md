@@ -24,7 +24,8 @@ npx @soralabsoss/sora-cli list
 ```bash
 npx @soralabsoss/sora-cli add text-effect --path src/components/ui
 npx @soralabsoss/sora-cli add text-effect --force
-npx @soralabsoss/sora-cli add text-effect --registry ui   # default; other products register here later
+npx @soralabsoss/sora-cli add text-effect --registry ui                          # default; other Sora Labs products register here later
+npx @soralabsoss/sora-cli add some-item --registry https://any-shadcn-registry.com   # or point at any shadcn-compatible registry directly
 npx @soralabsoss/sora-cli add text-effect --yes           # skip the install confirmation, for scripts/CI
 npx @soralabsoss/sora-cli add text-effect --dry-run       # preview what would change, write nothing
 npx @soralabsoss/sora-cli add text-effect --silent        # only print summary lines, not per-file output
@@ -36,7 +37,7 @@ npx @soralabsoss/sora-cli --version
 
 The CLI fetches a shadcn-compatible registry (`<product-url>/r/registry.json`, `<product-url>/r/<name>.json`) built by that product's own `registry:build` step, resolves the dependency tree, writes files into your project, and installs npm dependencies with your detected package manager (bun/pnpm/yarn/npm).
 
-Each product registers its base URL in [`src/constants.ts`](src/constants.ts) — adding a new Sora Labs product only requires adding an entry there, no other logic changes.
+Each Sora Labs product registers its base URL in [`src/constants.ts`](src/constants.ts) as a short `--registry` key — adding a new product only requires adding an entry there, no other logic changes. `--registry` also accepts a full URL directly, so it works against any shadcn-compatible registry, not just Sora Labs' own.
 
 ## Development
 

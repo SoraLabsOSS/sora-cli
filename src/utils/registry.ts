@@ -1,10 +1,24 @@
 import { DEFAULT_REGISTRY, REGISTRIES } from "../constants.js";
 import type { Registry, RegistryItem } from "../types.js";
 
+const HTTP_URL = /^https?:\/\//;
+const TRAILING_SLASH = /\/$/;
+
+/**
+ * `--registry` accepts either a known Sora Labs product key ("ui") or a
+ * full URL of any shadcn-compatible registry — the fetch/validation/alias-
+ * rewrite/path-resolution logic here doesn't assume anything Sora-specific,
+ * so pointing it at a third-party registry (or a private/internal one)
+ * works the same way.
+ */
 function resolveRegistryUrl(registry?: string): string {
   const envOverride = process.env.SORA_REGISTRY_URL;
   if (envOverride) {
     return envOverride;
+  }
+
+  if (registry && HTTP_URL.test(registry)) {
+    return registry.replace(TRAILING_SLASH, "");
   }
 
   const key = registry ?? DEFAULT_REGISTRY;
@@ -12,7 +26,9 @@ function resolveRegistryUrl(registry?: string): string {
 
   if (!url) {
     const available = Object.keys(REGISTRIES).join(", ");
-    throw new Error(`Unknown registry "${key}". Available: ${available}`);
+    throw new Error(
+      `Unknown registry "${key}". Available: ${available}, or pass a full registry URL.`
+    );
   }
 
   return url;
