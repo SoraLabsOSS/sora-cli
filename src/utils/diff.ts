@@ -5,6 +5,7 @@ import pc from "picocolors";
 import type { ProjectConfig, RegistryItem } from "@/types.js";
 import { fileHeader } from "@/utils/colors.js";
 import {
+  assertSafeDestination,
   normalizeLineEndings,
   resolveTarget,
   rewriteAliases,
@@ -30,6 +31,17 @@ export function diffComponentFiles(
 ): FileDiffResult[] {
   const results: FileDiffResult[] = [];
   const cwd = process.cwd();
+
+  // Validate every target before reading any of them — same guard
+  // writeComponent applies before writing, so a malicious registry can't
+  // use ".." in a file target to read something outside the project (e.g.
+  // ".env", SSH keys) and have its content printed as a "diff".
+  for (const file of item.files) {
+    if (!file.content) {
+      continue;
+    }
+    assertSafeDestination(join(cwd, resolveTarget(file, item, config)), cwd);
+  }
 
   for (const file of item.files) {
     if (!file.content) {

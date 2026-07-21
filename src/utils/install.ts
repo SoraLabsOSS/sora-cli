@@ -96,7 +96,7 @@ export function normalizeLineEndings(content: string): string {
  * outside it (e.g. a malicious "../../../.bashrc") before it's ever used
  * for an existsSync/read/write.
  */
-function assertSafeDestination(destPath: string, cwd: string): void {
+export function assertSafeDestination(destPath: string, cwd: string): void {
   const resolvedCwd = resolve(cwd);
   const resolvedDest = resolve(destPath);
   if (
