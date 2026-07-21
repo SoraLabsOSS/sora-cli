@@ -1,6 +1,6 @@
 # @soralabsoss/sora-cli
 
-[![Socket Badge](https://badge.socket.dev/npm/package/@soralabsoss/sora-cli/0.1.6)](https://socket.dev/npm/package/@soralabsoss/sora-cli/overview/0.1.6)
+[![Socket Badge](https://badge.socket.dev/npm/package/@soralabsoss/sora-cli/0.1.7)](https://socket.dev/npm/package/@soralabsoss/sora-cli/overview/0.1.7)
 
 CLI to install [Sora UI](https://ui.soralabs.io.vn) components — and, over time, components from other Sora Labs products (Sora Studio, Sora Lattice) — into your project.
 
