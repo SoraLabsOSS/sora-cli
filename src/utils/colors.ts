@@ -27,6 +27,10 @@ export function highlight(text: string): string {
   return pc.cyan(text);
 }
 
+export function dim(text: string): string {
+  return pc.dim(text);
+}
+
 export function fileHeader(path: string): void {
   console.log(pc.bold(pc.cyan(`── ${path} ──`)));
 }

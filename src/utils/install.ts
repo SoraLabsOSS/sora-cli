@@ -86,7 +86,7 @@ const CRLF = /\r\n/g;
  * endings even though its actual content is unchanged — normalize before
  * comparing so that doesn't look like a real diff.
  */
-function normalizeLineEndings(content: string): string {
+export function normalizeLineEndings(content: string): string {
   return content.replace(CRLF, "\n");
 }
 

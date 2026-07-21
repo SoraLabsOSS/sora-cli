@@ -1,6 +1,8 @@
 import { add } from "@/commands/add.js";
+import { diff } from "@/commands/diff.js";
 import { list } from "@/commands/list.js";
 import { error, header } from "@/utils/colors.js";
+import { printUpdateNotice, startUpdateCheck } from "@/utils/update-check.js";
 
 declare const __VERSION__: string;
 
@@ -14,6 +16,9 @@ function printHelp(): void {
   console.log("Commands:");
   console.log("  add [components...]   Add components to your project");
   console.log("  list                  List available components");
+  console.log(
+    "  diff <components...>  Compare installed components against the registry"
+  );
   console.log();
   console.log("Options:");
   console.log("  --path <path>         Custom component install path");
@@ -51,6 +56,7 @@ function printHelp(): void {
   console.log(
     "  npx @soralabsoss/sora-cli add some-item --registry https://your-registry.example.com   # any shadcn-compatible registry"
   );
+  console.log("  npx @soralabsoss/sora-cli diff text-effect");
 }
 
 function parseFlag(argList: string[], flag: string): string | undefined {
@@ -59,6 +65,85 @@ function parseFlag(argList: string[], flag: string): string | undefined {
     return;
   }
   return argList[index + 1];
+}
+
+async function runAdd(): Promise<void> {
+  const rest = args.slice(1);
+  const path = parseFlag(rest, "--path");
+  const registry = parseFlag(rest, "--registry");
+  const force = rest.includes("--force") || rest.includes("-f");
+  const yes = rest.includes("--yes") || rest.includes("-y");
+  const dryRun = rest.includes("--dry-run");
+  const silent = rest.includes("--silent") || rest.includes("-s");
+  const view = rest.includes("--view");
+
+  const componentArgs = rest.filter((arg, i) => {
+    if (arg.startsWith("-")) {
+      return false;
+    }
+    const prev = rest[i - 1];
+    return prev !== "--path" && prev !== "--registry";
+  });
+
+  const ok = await add(componentArgs, {
+    dryRun,
+    force,
+    path,
+    registry,
+    silent,
+    view,
+    yes,
+  });
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function runList(): Promise<void> {
+  const rest = args.slice(1);
+  const json = rest.includes("--json");
+  const registry = parseFlag(rest, "--registry");
+  await list({ json, registry });
+}
+
+async function runDiff(): Promise<void> {
+  const rest = args.slice(1);
+  const path = parseFlag(rest, "--path");
+  const registry = parseFlag(rest, "--registry");
+
+  const componentArgs = rest.filter((arg, i) => {
+    if (arg.startsWith("-")) {
+      return false;
+    }
+    const prev = rest[i - 1];
+    return prev !== "--path" && prev !== "--registry";
+  });
+
+  const ok = await diff(componentArgs, { path, registry });
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
+async function runCommand(): Promise<void> {
+  if (command === "add") {
+    await runAdd();
+    return;
+  }
+
+  if (command === "list" || command === "ls") {
+    await runList();
+    return;
+  }
+
+  if (command === "diff") {
+    await runDiff();
+    return;
+  }
+
+  error(`Unknown command: ${command}`);
+  printHelp();
+  process.exit(1);
 }
 
 async function main(): Promise<void> {
@@ -73,50 +158,18 @@ async function main(): Promise<void> {
       return;
     }
 
-    if (command === "add") {
-      const rest = args.slice(1);
-      const path = parseFlag(rest, "--path");
-      const registry = parseFlag(rest, "--registry");
-      const force = rest.includes("--force") || rest.includes("-f");
-      const yes = rest.includes("--yes") || rest.includes("-y");
-      const dryRun = rest.includes("--dry-run");
-      const silent = rest.includes("--silent") || rest.includes("-s");
-      const view = rest.includes("--view");
-
-      const componentArgs = rest.filter((arg, i) => {
-        if (arg.startsWith("-")) {
-          return false;
-        }
-        const prev = rest[i - 1];
-        return prev !== "--path" && prev !== "--registry";
-      });
-
-      const ok = await add(componentArgs, {
-        dryRun,
-        force,
-        path,
-        registry,
-        silent,
-        view,
-        yes,
-      });
-      if (!ok) {
-        process.exitCode = 1;
+    // Kicked off in parallel with the command itself so it never adds
+    // latency; only checked (with its own short timeout) once the
+    // command's own work is done.
+    const updateCheck = startUpdateCheck(__VERSION__);
+    try {
+      await runCommand();
+    } finally {
+      const latest = await updateCheck;
+      if (latest) {
+        printUpdateNotice(latest, __VERSION__);
       }
-      return;
     }
-
-    if (command === "list" || command === "ls") {
-      const rest = args.slice(1);
-      const json = rest.includes("--json");
-      const registry = parseFlag(rest, "--registry");
-      await list({ json, registry });
-      return;
-    }
-
-    error(`Unknown command: ${command}`);
-    printHelp();
-    process.exit(1);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     error(msg || "An unknown error occurred");

@@ -1,5 +1,5 @@
 import type { RegistryItem } from "@/types.js";
-import { bar, highlight } from "@/utils/colors.js";
+import { bar, dim, highlight } from "@/utils/colors.js";
 import { fetchComponent } from "@/utils/registry.js";
 
 export interface ResolvedNode {
@@ -60,7 +60,14 @@ export function flattenTree(node: ResolvedNode): RegistryItem[] {
 
 export function printTree(node: ResolvedNode, depth = 0): void {
   const prefix = depth === 0 ? "" : `${"  ".repeat(depth)}└─ `;
-  bar(`${prefix}${highlight(node.item.name)}`);
+  // Only the top-level requested component's description is shown — nested
+  // dependency entries (hooks/lib) rarely have a meaningful one and it
+  // would just clutter a multi-dependency tree.
+  const description =
+    depth === 0 && node.item.description
+      ? ` ${dim(`— ${node.item.description}`)}`
+      : "";
+  bar(`${prefix}${highlight(node.item.name)}${description}`);
   for (const child of node.children) {
     printTree(child, depth + 1);
   }
