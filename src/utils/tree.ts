@@ -16,16 +16,27 @@ export interface ResolvedNode {
  */
 const BASE_DEPENDENCIES = new Set(["utils"]);
 
+/**
+ * registryDependencies on soralabs items are shadcn-style namespaced refs
+ * ("@soralabs/accordion"), but this CLI only ever talks to one registry at
+ * a time and that registry's own /r/<name>.json endpoints use flat names.
+ */
+function stripNamespace(name: string): string {
+  return name.includes("/") ? name.slice(name.lastIndexOf("/") + 1) : name;
+}
+
 export async function resolveTree(
   name: string,
   registry?: string,
   seen: Set<string> = new Set()
 ): Promise<ResolvedNode> {
-  const item = await fetchComponent(name, registry);
-  seen.add(name);
+  const bareName = stripNamespace(name);
+  const item = await fetchComponent(bareName, registry);
+  seen.add(bareName);
 
   const children: ResolvedNode[] = [];
-  for (const dep of item.registryDependencies ?? []) {
+  for (const rawDep of item.registryDependencies ?? []) {
+    const dep = stripNamespace(rawDep);
     if (seen.has(dep) || BASE_DEPENDENCIES.has(dep)) {
       continue;
     }
