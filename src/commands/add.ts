@@ -8,7 +8,7 @@ import {
 } from "@clack/prompts";
 import { searchMultiselect } from "@/prompts/search-multiselect.js";
 import type { PackageManager, ProjectConfig, RegistryItem } from "@/types.js";
-import { bar, done, error, fileHeader } from "@/utils/colors.js";
+import { bar, done, error, fileHeader, sanitize } from "@/utils/colors.js";
 import { detectConfig, getInstalledDependencyNames } from "@/utils/detect.js";
 import {
   assertSafeDependencies,
@@ -142,8 +142,8 @@ function printComponentFiles(
       if (!file.content) {
         continue;
       }
-      fileHeader(resolveTarget(file, item, config));
-      console.log(rewriteAliases(file.content, config.aliases));
+      fileHeader(sanitize(resolveTarget(file, item, config)));
+      console.log(sanitize(rewriteAliases(file.content, config.aliases)));
       console.log();
     }
   }
@@ -259,13 +259,13 @@ async function writeComponents(
       continue;
     }
     for (const file of written) {
-      done(`${writtenLabel}: ${file}`);
+      done(`${writtenLabel}: ${sanitize(file)}`);
     }
     for (const file of skipped) {
-      done(`Skipped: ${file}`);
+      done(`Skipped: ${sanitize(file)}`);
     }
     for (const file of unchanged) {
-      bar(`Unchanged: ${file}`);
+      bar(`Unchanged: ${sanitize(file)}`);
     }
   }
 }

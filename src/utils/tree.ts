@@ -1,5 +1,5 @@
 import type { RegistryItem } from "@/types.js";
-import { bar, dim, highlight } from "@/utils/colors.js";
+import { bar, dim, highlight, sanitize } from "@/utils/colors.js";
 import { fetchComponent } from "@/utils/registry.js";
 
 export interface ResolvedNode {
@@ -65,9 +65,9 @@ export function printTree(node: ResolvedNode, depth = 0): void {
   // would just clutter a multi-dependency tree.
   const description =
     depth === 0 && node.item.description
-      ? ` ${dim(`— ${node.item.description}`)}`
+      ? ` ${dim(`— ${sanitize(node.item.description)}`)}`
       : "";
-  bar(`${prefix}${highlight(node.item.name)}${description}`);
+  bar(`${prefix}${highlight(sanitize(node.item.name))}${description}`);
   for (const child of node.children) {
     printTree(child, depth + 1);
   }

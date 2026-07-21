@@ -1,5 +1,5 @@
 import { spinner } from "@clack/prompts";
-import { done, highlight } from "@/utils/colors.js";
+import { done, highlight, sanitize } from "@/utils/colors.js";
 import { fetchRegistry } from "@/utils/registry.js";
 
 interface ListOptions {
@@ -28,11 +28,14 @@ export async function list(options: ListOptions): Promise<void> {
     return;
   }
 
-  done(`${components.length} components available from ${data.name}:`);
+  done(
+    `${components.length} components available from ${sanitize(data.name)}:`
+  );
   console.log();
   for (const item of components) {
-    console.log(
-      `  ${highlight(item.name)}${item.description ? ` — ${item.description}` : ""}`
-    );
+    const description = item.description
+      ? ` — ${sanitize(item.description)}`
+      : "";
+    console.log(`  ${highlight(sanitize(item.name))}${description}`);
   }
 }

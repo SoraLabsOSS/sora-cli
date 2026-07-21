@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { type Change, diffLines } from "diff";
 import pc from "picocolors";
 import type { ProjectConfig, RegistryItem } from "@/types.js";
-import { fileHeader } from "@/utils/colors.js";
+import { fileHeader, sanitize } from "@/utils/colors.js";
 import {
   assertSafeDestination,
   normalizeLineEndings,
@@ -82,14 +82,15 @@ export function printFileDiff(result: FileDiffResult): void {
     return;
   }
 
-  fileHeader(result.target);
+  fileHeader(sanitize(result.target));
   for (const part of result.hunks) {
+    const value = sanitize(part.value);
     if (part.added) {
-      process.stdout.write(pc.green(prefixLines(part.value, "+")));
+      process.stdout.write(pc.green(prefixLines(value, "+")));
     } else if (part.removed) {
-      process.stdout.write(pc.red(prefixLines(part.value, "-")));
+      process.stdout.write(pc.red(prefixLines(value, "-")));
     } else {
-      process.stdout.write(pc.dim(prefixLines(part.value, " ")));
+      process.stdout.write(pc.dim(prefixLines(value, " ")));
     }
   }
   console.log();

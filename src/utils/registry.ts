@@ -1,5 +1,6 @@
 import { DEFAULT_REGISTRY, REGISTRIES } from "@/constants.js";
 import type { Registry, RegistryItem } from "@/types.js";
+import { sanitize } from "@/utils/colors.js";
 
 const HTTP_URL = /^https?:\/\//;
 const TRAILING_SLASH = /\/$/;
@@ -107,7 +108,7 @@ async function fetchJson<T>(
     }
     const detail = await tryExtractErrorDetail(response);
     throw new Error(
-      `Registry request to ${url} failed: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ""}`
+      `Registry request to ${url} failed: ${response.status} ${sanitize(response.statusText)}${detail ? ` — ${sanitize(detail)}` : ""}`
     );
   }
 
