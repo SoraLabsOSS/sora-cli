@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import { SORA_CLI_BANNER } from "../ascii-art.js";
+import { SORA_CLI_BANNER } from "@/ascii-art.js";
 
 export function header(): void {
   console.log(pc.cyan(SORA_CLI_BANNER));

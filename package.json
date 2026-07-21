@@ -22,7 +22,7 @@
   },
   "type": "module",
   "version": "0.1.9",
-  "description": "CLI to install Sora UI (and future Sora Labs) components into your project",
+  "description": "CLI to install components from any shadcn-compatible registry — defaults to Sora UI and other Sora Labs products",
   "license": "MIT",
   "author": "Axyl1410",
   "homepage": "https://ui.soralabs.io.vn",

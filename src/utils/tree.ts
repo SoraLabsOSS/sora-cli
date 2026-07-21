@@ -1,6 +1,6 @@
-import type { RegistryItem } from "../types.js";
-import { bar, highlight } from "./colors.js";
-import { fetchComponent } from "./registry.js";
+import type { RegistryItem } from "@/types.js";
+import { bar, highlight } from "@/utils/colors.js";
+import { fetchComponent } from "@/utils/registry.js";
 
 export interface ResolvedNode {
   children: ResolvedNode[];

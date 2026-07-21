@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { DEFAULT_COMPONENT_PATH } from "../constants.js";
+import { DEFAULT_COMPONENT_PATH } from "@/constants.js";
 import type {
   ComponentAliases,
   PackageManager,
   ProjectConfig,
-} from "../types.js";
+} from "@/types.js";
 
 const TRAILING_GLOB = /\/\*$/;
 const LEADING_DOT_SLASH = /^\.\//;

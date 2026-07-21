@@ -1,5 +1,5 @@
-import { DEFAULT_REGISTRY, REGISTRIES } from "../constants.js";
-import type { Registry, RegistryItem } from "../types.js";
+import { DEFAULT_REGISTRY, REGISTRIES } from "@/constants.js";
+import type { Registry, RegistryItem } from "@/types.js";
 
 const HTTP_URL = /^https?:\/\//;
 const TRAILING_SLASH = /\/$/;

@@ -6,10 +6,10 @@ import {
   select,
   spinner,
 } from "@clack/prompts";
-import { searchMultiselect } from "../prompts/search-multiselect.js";
-import type { PackageManager, ProjectConfig, RegistryItem } from "../types.js";
-import { bar, done, error, fileHeader } from "../utils/colors.js";
-import { detectConfig, getInstalledDependencyNames } from "../utils/detect.js";
+import { searchMultiselect } from "@/prompts/search-multiselect.js";
+import type { PackageManager, ProjectConfig, RegistryItem } from "@/types.js";
+import { bar, done, error, fileHeader } from "@/utils/colors.js";
+import { detectConfig, getInstalledDependencyNames } from "@/utils/detect.js";
 import {
   assertSafeDependencies,
   ensureUtils,
@@ -17,14 +17,14 @@ import {
   resolveTarget,
   rewriteAliases,
   writeComponent,
-} from "../utils/install.js";
-import { getAvailableComponents } from "../utils/registry.js";
+} from "@/utils/install.js";
+import { getAvailableComponents } from "@/utils/registry.js";
 import {
   collectNpmDeps,
   flattenTree,
   printTree,
   resolveTree,
-} from "../utils/tree.js";
+} from "@/utils/tree.js";
 
 interface AddOptions {
   dryRun?: boolean;

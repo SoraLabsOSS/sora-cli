@@ -6,7 +6,7 @@ import type {
   PackageManager,
   ProjectConfig,
   RegistryItem,
-} from "../types.js";
+} from "@/types.js";
 
 export type OverwriteChoice = "overwrite" | "skip" | "all";
 

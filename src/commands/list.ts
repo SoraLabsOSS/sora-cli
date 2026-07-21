@@ -1,6 +1,6 @@
 import { spinner } from "@clack/prompts";
-import { done, highlight } from "../utils/colors.js";
-import { fetchRegistry } from "../utils/registry.js";
+import { done, highlight } from "@/utils/colors.js";
+import { fetchRegistry } from "@/utils/registry.js";
 
 interface ListOptions {
   json?: boolean;

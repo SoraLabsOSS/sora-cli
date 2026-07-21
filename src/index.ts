@@ -1,6 +1,6 @@
-import { add } from "./commands/add.js";
-import { list } from "./commands/list.js";
-import { error, header } from "./utils/colors.js";
+import { add } from "@/commands/add.js";
+import { list } from "@/commands/list.js";
+import { error, header } from "@/utils/colors.js";
 
 declare const __VERSION__: string;
 
