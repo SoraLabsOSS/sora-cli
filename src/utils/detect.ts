@@ -15,7 +15,7 @@ function detectPackageManager(): PackageManager {
   return "npm";
 }
 
-function detectAlias(): string {
+function detectAlias(): { alias: string; srcDir: string } {
   for (const file of ["tsconfig.json", "jsconfig.json"]) {
     if (!existsSync(file)) {
       continue;
@@ -30,19 +30,24 @@ function detectAlias(): string {
         key.startsWith("@/")
       );
       if (match) {
-        return match[0].replace(/\/\*$/, "");
+        const alias = match[0].replace(/\/\*$/, "");
+        const target = match[1]?.[0]?.replace(/\/\*$/, "").replace(/^\.\//, "") ?? "";
+        const srcDir = target === "src" || target.startsWith("src/") ? "src" : "";
+        return { alias, srcDir };
       }
     } catch {
       // malformed config, fall through to default
     }
   }
-  return "@";
+  return { alias: "@", srcDir: existsSync("src") ? "src" : "" };
 }
 
 export function detectConfig(): ProjectConfig {
+  const { alias, srcDir } = detectAlias();
   return {
     packageManager: detectPackageManager(),
-    componentPath: DEFAULT_COMPONENT_PATH,
-    alias: detectAlias(),
+    componentPath: srcDir ? `${srcDir}/${DEFAULT_COMPONENT_PATH}` : DEFAULT_COMPONENT_PATH,
+    alias,
+    srcDir,
   };
 }

@@ -36,4 +36,5 @@ export interface ProjectConfig {
   packageManager: PackageManager;
   componentPath: string;
   alias: string;
+  srcDir: string;
 }

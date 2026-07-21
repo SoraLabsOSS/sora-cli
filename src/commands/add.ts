@@ -127,9 +127,9 @@ export async function add(
   console.log();
 
   if (needsUtils) {
-    const result = ensureUtils();
+    const result = ensureUtils(config.srcDir);
     if (result === "written") {
-      done("Written: lib/utils.ts");
+      done(`Written: ${config.srcDir ? `${config.srcDir}/` : ""}lib/utils.ts`);
     }
   }
 

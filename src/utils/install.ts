@@ -18,8 +18,8 @@ export function cn(...inputs: ClassValue[]) {
  * fetchable from a product registry — write it directly if the target
  * project doesn't already have it.
  */
-export function ensureUtils(): "written" | "exists" {
-  const destPath = join(process.cwd(), "lib", "utils.ts");
+export function ensureUtils(srcDir: string): "written" | "exists" {
+  const destPath = join(process.cwd(), srcDir, "lib", "utils.ts");
   if (existsSync(destPath)) {
     return "exists";
   }
@@ -47,7 +47,11 @@ export async function writeComponent(
       continue;
     }
 
-    const relativeTarget = file.target ?? `${config.componentPath}/${item.name}.tsx`;
+    const relativeTarget = file.target
+      ? config.srcDir
+        ? `${config.srcDir}/${file.target}`
+        : file.target
+      : `${config.componentPath}/${item.name}.tsx`;
     const destPath = join(process.cwd(), relativeTarget);
 
     if (existsSync(destPath) && !overwriteAll) {
