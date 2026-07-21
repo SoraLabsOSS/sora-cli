@@ -68,7 +68,7 @@ async function pickComponents(registry?: string): Promise<string[] | null> {
     return null;
   }
 
-  done(`Selected: ${selected.join(", ")}`);
+  done(`Selected: ${selected.map(sanitize).join(", ")}`);
   console.log();
   return selected;
 }
@@ -236,7 +236,7 @@ async function writeComponents(
       overwriteAll,
       async (filename) => {
         const action = await select({
-          message: `File exists: ${filename}`,
+          message: `File exists: ${sanitize(filename)}`,
           options: [
             { label: "Overwrite", value: "overwrite" },
             { label: "Skip", value: "skip" },

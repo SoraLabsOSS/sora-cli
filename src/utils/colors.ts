@@ -2,7 +2,7 @@ import pc from "picocolors";
 import { SORA_CLI_BANNER } from "@/ascii-art.js";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally matching control/escape chars to strip them before printing
-const CONTROL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+const CONTROL_CHARS = /[\x00-\x08\x0B-\x1F\x7F]/g;
 
 /**
  * Names, descriptions, file paths, error detail, and diffed file content
