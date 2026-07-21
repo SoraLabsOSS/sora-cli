@@ -18,7 +18,10 @@ import {
   rewriteAliases,
   writeComponent,
 } from "@/utils/install.js";
-import { getAvailableComponents } from "@/utils/registry.js";
+import {
+  getAvailableComponents,
+  resolveRegistryUrl,
+} from "@/utils/registry.js";
 import {
   collectNpmDeps,
   flattenTree,
@@ -154,7 +157,8 @@ interface ConfirmedInstall {
 
 async function collectDepsAndConfirm(
   allComponents: RegistryItem[],
-  skipConfirm: boolean
+  skipConfirm: boolean,
+  registryUrl: string
 ): Promise<ConfirmedInstall | null> {
   const needsUtils = allComponents.some((item) =>
     item.registryDependencies?.includes("utils")
@@ -185,7 +189,8 @@ async function collectDepsAndConfirm(
     const confirmed = await confirm({
       message: buildConfirmMessage(
         allComponents.length,
-        dependencies.length + devDependencies.length
+        dependencies.length + devDependencies.length,
+        registryUrl
       ),
     });
 
@@ -200,12 +205,15 @@ async function collectDepsAndConfirm(
 
 function buildConfirmMessage(
   totalComponents: number,
-  totalDeps: number
+  totalDeps: number,
+  registryUrl: string
 ): string {
   const componentLabel = `${totalComponents} component${totalComponents > 1 ? "s" : ""}`;
-  return totalDeps > 0
-    ? `Install ${componentLabel} + ${totalDeps} npm package${totalDeps > 1 ? "s" : ""}?`
-    : `Install ${componentLabel}?`;
+  const suffix =
+    totalDeps > 0
+      ? ` + ${totalDeps} npm package${totalDeps > 1 ? "s" : ""}`
+      : "";
+  return `Install ${componentLabel}${suffix} from ${registryUrl}?`;
 }
 
 async function writeComponents(
@@ -382,7 +390,16 @@ export async function add(
     config.componentPath = options.path;
   }
 
+  let registryUrl: string;
+  try {
+    registryUrl = resolveRegistryUrl(options.registry);
+  } catch (err) {
+    error((err as Error).message);
+    return false;
+  }
+
   done(`Detected: ${config.componentPath}/ (${config.packageManager})`);
+  done(`Registry: ${registryUrl}`);
   if (options.dryRun) {
     done("Dry run: no files will be written, no packages will be installed.");
   }
@@ -415,7 +432,8 @@ export async function add(
 
   const confirmResult = await collectDepsAndConfirm(
     allComponents,
-    (options.yes ?? false) || (options.dryRun ?? false)
+    (options.yes ?? false) || (options.dryRun ?? false),
+    registryUrl
   );
   if (!confirmResult) {
     return true;

@@ -3,6 +3,30 @@ import type { Registry, RegistryItem } from "@/types.js";
 
 const HTTP_URL = /^https?:\/\//;
 const TRAILING_SLASH = /\/$/;
+const LOCAL_HOSTNAMES = new Set(["127.0.0.1", "::1", "localhost"]);
+
+/**
+ * A custom `--registry`/`SORA_REGISTRY_URL` value is fetched over the
+ * network and its response is written straight into the user's project and
+ * fed into the package manager — plain HTTP makes that payload tamperable
+ * in transit (no integrity/signature verification exists for registry
+ * content, same as upstream shadcn). Loopback is exempted so local
+ * development/test registries keep working without HTTPS.
+ */
+function assertSecureRegistryUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch (err) {
+    throw new Error(`Invalid registry URL: "${url}"`, { cause: err });
+  }
+
+  if (parsed.protocol === "http:" && !LOCAL_HOSTNAMES.has(parsed.hostname)) {
+    throw new Error(
+      `Registry URL "${url}" must use HTTPS. Plain HTTP is only allowed for localhost during development.`
+    );
+  }
+}
 
 /**
  * `--registry` accepts either a known Sora Labs product key ("ui") or a
@@ -11,14 +35,17 @@ const TRAILING_SLASH = /\/$/;
  * so pointing it at a third-party registry (or a private/internal one)
  * works the same way.
  */
-function resolveRegistryUrl(registry?: string): string {
+export function resolveRegistryUrl(registry?: string): string {
   const envOverride = process.env.SORA_REGISTRY_URL;
   if (envOverride) {
+    assertSecureRegistryUrl(envOverride);
     return envOverride;
   }
 
   if (registry && HTTP_URL.test(registry)) {
-    return registry.replace(TRAILING_SLASH, "");
+    const url = registry.replace(TRAILING_SLASH, "");
+    assertSecureRegistryUrl(url);
+    return url;
   }
 
   const key = registry ?? DEFAULT_REGISTRY;

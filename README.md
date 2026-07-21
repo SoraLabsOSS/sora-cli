@@ -40,7 +40,7 @@ npx @soralabsoss/sora-cli --version
 
 The CLI fetches a shadcn-compatible registry (`<product-url>/r/registry.json`, `<product-url>/r/<name>.json`) built by that product's own `registry:build` step, resolves the dependency tree, writes files into your project, and installs npm dependencies with your detected package manager (bun/pnpm/yarn/npm).
 
-Each Sora Labs product registers its base URL in [`src/constants.ts`](src/constants.ts) as a short `--registry` key — adding a new product only requires adding an entry there, no other logic changes. `--registry` also accepts a full URL directly, so it works against any shadcn-compatible registry, not just Sora Labs' own.
+Each Sora Labs product registers its base URL in [`src/constants.ts`](src/constants.ts) as a short `--registry` key — adding a new product only requires adding an entry there, no other logic changes. `--registry` also accepts a full URL directly, so it works against any shadcn-compatible registry, not just Sora Labs' own — it must be HTTPS (plain HTTP is only allowed for `localhost`/`127.0.0.1`, for local registry development). Registry content isn't cryptographically signed, so only point `--registry` at a registry you trust — it's written into your project and its dependency list is fed straight into your package manager.
 
 Since components are copied into your project rather than installed as a package, `sora diff` is the way to check whether the registry has changed a component since you installed it — it reports differences without writing anything; re-run `add <component> --force --yes` to apply an update.
 
