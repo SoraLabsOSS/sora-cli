@@ -1,40 +1,40 @@
 export interface RegistryFile {
-  path: string;
   content?: string;
-  type: string;
+  path: string;
   target?: string;
+  type: string;
 }
 
 export interface RegistryItem {
   $schema?: string;
-  name: string;
-  type: string;
-  title?: string;
-  description?: string;
   dependencies?: string[];
+  description?: string;
   devDependencies?: string[];
-  registryDependencies?: string[];
   files: RegistryFile[];
+  name: string;
+  registryDependencies?: string[];
+  title?: string;
+  type: string;
 }
 
 export interface RegistryIndexItem {
-  name: string;
-  type: string;
-  title?: string;
   description?: string;
+  name: string;
+  title?: string;
+  type: string;
 }
 
 export interface Registry {
-  name: string;
   homepage: string;
   items: RegistryIndexItem[];
+  name: string;
 }
 
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
 export interface ProjectConfig {
-  packageManager: PackageManager;
-  componentPath: string;
   alias: string;
+  componentPath: string;
+  packageManager: PackageManager;
   srcDir: string;
 }

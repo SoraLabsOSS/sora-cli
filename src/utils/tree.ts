@@ -3,8 +3,8 @@ import { bar } from "./colors.js";
 import { fetchComponent } from "./registry.js";
 
 export interface ResolvedNode {
-  item: RegistryItem;
   children: ResolvedNode[];
+  item: RegistryItem;
 }
 
 /**
@@ -35,15 +35,18 @@ export async function resolveTree(
   seen.add(bareName);
 
   const children: ResolvedNode[] = [];
+  // Sequential by design: `seen` must be updated between fetches so
+  // shared dependencies aren't resolved (and fetched) more than once.
   for (const rawDep of item.registryDependencies ?? []) {
     const dep = stripNamespace(rawDep);
     if (seen.has(dep) || BASE_DEPENDENCIES.has(dep)) {
       continue;
     }
+    // biome-ignore lint/performance/noAwaitInLoops: must stay sequential, see comment above
     children.push(await resolveTree(dep, registry, seen));
   }
 
-  return { item, children };
+  return { children, item };
 }
 
 export function flattenTree(node: ResolvedNode): RegistryItem[] {
@@ -56,7 +59,7 @@ export function flattenTree(node: ResolvedNode): RegistryItem[] {
 }
 
 export function printTree(node: ResolvedNode, depth = 0): void {
-  const prefix = depth === 0 ? "" : "  ".repeat(depth) + "└─ ";
+  const prefix = depth === 0 ? "" : `${"  ".repeat(depth)}└─ `;
   bar(`${prefix}${node.item.name}`);
   for (const child of node.children) {
     printTree(child, depth + 1);

@@ -2,6 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { DEFAULT_COMPONENT_PATH } from "../constants.js";
 import type { PackageManager, ProjectConfig } from "../types.js";
 
+const TRAILING_GLOB = /\/\*$/;
+const LEADING_DOT_SLASH = /^\.\//;
+
 function detectPackageManager(): PackageManager {
   if (existsSync("bun.lock") || existsSync("bun.lockb")) {
     return "bun";
@@ -26,13 +29,15 @@ function detectAlias(): { alias: string; srcDir: string } {
         compilerOptions?: { paths?: Record<string, string[]> };
       };
       const paths = parsed.compilerOptions?.paths ?? {};
-      const match = Object.entries(paths).find(([key]) =>
-        key.startsWith("@/")
-      );
+      const match = Object.entries(paths).find(([key]) => key.startsWith("@/"));
       if (match) {
-        const alias = match[0].replace(/\/\*$/, "");
-        const target = match[1]?.[0]?.replace(/\/\*$/, "").replace(/^\.\//, "") ?? "";
-        const srcDir = target === "src" || target.startsWith("src/") ? "src" : "";
+        const alias = match[0].replace(TRAILING_GLOB, "");
+        const target =
+          match[1]?.[0]
+            ?.replace(TRAILING_GLOB, "")
+            .replace(LEADING_DOT_SLASH, "") ?? "";
+        const srcDir =
+          target === "src" || target.startsWith("src/") ? "src" : "";
         return { alias, srcDir };
       }
     } catch {
@@ -45,9 +50,11 @@ function detectAlias(): { alias: string; srcDir: string } {
 export function detectConfig(): ProjectConfig {
   const { alias, srcDir } = detectAlias();
   return {
-    packageManager: detectPackageManager(),
-    componentPath: srcDir ? `${srcDir}/${DEFAULT_COMPONENT_PATH}` : DEFAULT_COMPONENT_PATH,
     alias,
+    componentPath: srcDir
+      ? `${srcDir}/${DEFAULT_COMPONENT_PATH}`
+      : DEFAULT_COMPONENT_PATH,
+    packageManager: detectPackageManager(),
     srcDir,
   };
 }

@@ -1,14 +1,14 @@
 import { isCancel, multiselect } from "@clack/prompts";
 
 interface Item {
-  value: string;
-  label: string;
   category: string;
+  label: string;
+  value: string;
 }
 
 interface Options {
-  message: string;
   items: Item[];
+  message: string;
 }
 
 /**
@@ -27,13 +27,12 @@ export async function searchMultiselect(
     byCategory.set(item.category, group);
   }
 
-  const selectOptions = [...byCategory.entries()].flatMap(
-    ([category, items]) =>
-      items.map((item) => ({
-        value: item.value,
-        label: `${item.label}`,
-        hint: category,
-      }))
+  const selectOptions = [...byCategory.entries()].flatMap(([category, items]) =>
+    items.map((item) => ({
+      hint: category,
+      label: `${item.label}`,
+      value: item.value,
+    }))
   );
 
   const result = await multiselect({

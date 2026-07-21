@@ -1,13 +1,13 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
-  format: ["esm"],
-  target: "node18",
-  platform: "node",
-  clean: true,
-  minify: true,
   banner: {
     js: "#!/usr/bin/env node",
   },
+  clean: true,
+  entry: ["src/index.ts"],
+  format: ["esm"],
+  minify: true,
+  platform: "node",
+  target: "node18",
 });

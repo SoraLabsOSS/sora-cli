@@ -1,6 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { DEFAULT_COMPONENT_PATH } from "../constants.js";
 import type { PackageManager, ProjectConfig, RegistryItem } from "../types.js";
 
@@ -30,8 +30,27 @@ export function ensureUtils(srcDir: string): "written" | "exists" {
 }
 
 interface WriteResult {
-  written: string[];
   skipped: string[];
+  written: string[];
+}
+
+const COMPONENT_PREFIX = `${DEFAULT_COMPONENT_PATH}/`;
+
+function resolveTarget(
+  file: RegistryItem["files"][number],
+  item: RegistryItem,
+  config: ProjectConfig
+): string {
+  if (!file.target) {
+    return `${config.componentPath}/${item.name}.tsx`;
+  }
+  if (file.target.startsWith(COMPONENT_PREFIX)) {
+    return `${config.componentPath}/${file.target.slice(COMPONENT_PREFIX.length)}`;
+  }
+  if (config.srcDir) {
+    return `${config.srcDir}/${file.target}`;
+  }
+  return file.target;
 }
 
 export async function writeComponent(
@@ -42,30 +61,27 @@ export async function writeComponent(
 ): Promise<WriteResult> {
   const written: string[] = [];
   const skipped: string[] = [];
+  let overwrite = overwriteAll;
 
+  // Sequential by design: each conflict prompt depends on the previous
+  // choice ("overwrite all" must apply to every file after it).
   for (const file of item.files) {
     if (!file.content) {
       continue;
     }
 
-    const componentPrefix = `${DEFAULT_COMPONENT_PATH}/`;
-    const relativeTarget = file.target
-      ? file.target.startsWith(componentPrefix)
-        ? `${config.componentPath}/${file.target.slice(componentPrefix.length)}`
-        : config.srcDir
-          ? `${config.srcDir}/${file.target}`
-          : file.target
-      : `${config.componentPath}/${item.name}.tsx`;
+    const relativeTarget = resolveTarget(file, item, config);
     const destPath = join(process.cwd(), relativeTarget);
 
-    if (existsSync(destPath) && !overwriteAll) {
+    if (existsSync(destPath) && !overwrite) {
+      // biome-ignore lint/performance/noAwaitInLoops: prompts must run one at a time, not in parallel
       const choice = await onConflict(relativeTarget);
       if (choice === "skip") {
         skipped.push(relativeTarget);
         continue;
       }
       if (choice === "all") {
-        overwriteAll = true;
+        overwrite = true;
       }
     }
 
@@ -74,14 +90,14 @@ export async function writeComponent(
     written.push(relativeTarget);
   }
 
-  return { written, skipped };
+  return { skipped, written };
 }
 
 const INSTALL_ARGS: Record<PackageManager, { add: string; dev: string }> = {
   bun: { add: "add", dev: "-d" },
+  npm: { add: "install", dev: "-D" },
   pnpm: { add: "add", dev: "-D" },
   yarn: { add: "add", dev: "-D" },
-  npm: { add: "install", dev: "-D" },
 };
 
 export function installDependencies(
@@ -93,8 +109,8 @@ export function installDependencies(
 
   if (dependencies.length > 0) {
     const result = spawnSync(packageManager, [add, ...dependencies], {
-      stdio: "ignore",
       shell: process.platform === "win32",
+      stdio: "ignore",
     });
     if (result.status !== 0) {
       return false;
@@ -102,11 +118,10 @@ export function installDependencies(
   }
 
   if (devDependencies.length > 0) {
-    const result = spawnSync(
-      packageManager,
-      [add, dev, ...devDependencies],
-      { stdio: "ignore", shell: process.platform === "win32" }
-    );
+    const result = spawnSync(packageManager, [add, dev, ...devDependencies], {
+      shell: process.platform === "win32",
+      stdio: "ignore",
+    });
     if (result.status !== 0) {
       return false;
     }

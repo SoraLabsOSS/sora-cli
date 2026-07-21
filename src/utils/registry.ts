@@ -48,6 +48,8 @@ export async function getAvailableComponents(
 ): Promise<string[]> {
   const data = await fetchRegistry(registry);
   return data.items
-    .filter((item) => item.type === "registry:ui" && !item.name.startsWith("demo-"))
+    .filter(
+      (item) => item.type === "registry:ui" && !item.name.startsWith("demo-")
+    )
     .map((item) => item.name);
 }

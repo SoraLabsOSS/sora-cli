@@ -21,6 +21,8 @@ export async function list(options: ListOptions): Promise<void> {
   done(`${components.length} components available from ${data.name}:`);
   console.log();
   for (const item of components) {
-    console.log(`  ${item.name}${item.description ? ` — ${item.description}` : ""}`);
+    console.log(
+      `  ${item.name}${item.description ? ` — ${item.description}` : ""}`
+    );
   }
 }

@@ -3,7 +3,7 @@ import { list } from "./commands/list.js";
 import { error, header } from "./utils/colors.js";
 
 const args = process.argv.slice(2);
-const command = args[0];
+const [command] = args;
 
 function printHelp(): void {
   header();
@@ -16,21 +16,27 @@ function printHelp(): void {
   console.log("Options:");
   console.log("  --path <path>         Custom component install path");
   console.log("  --registry <name>     Product registry (default: ui)");
-  console.log("  --force               Overwrite existing files without asking");
+  console.log(
+    "  --force               Overwrite existing files without asking"
+  );
   console.log("  --json                Output as JSON (list command)");
   console.log("  --help                Show this help message");
   console.log();
   console.log("Examples:");
   console.log("  npx @soralabsoss/sora-cli add text-effect");
-  console.log("  npx @soralabsoss/sora-cli add text-effect draw-underline-link");
-  console.log("  npx @soralabsoss/sora-cli add                         # Interactive mode");
+  console.log(
+    "  npx @soralabsoss/sora-cli add text-effect draw-underline-link"
+  );
+  console.log(
+    "  npx @soralabsoss/sora-cli add                         # Interactive mode"
+  );
   console.log("  npx @soralabsoss/sora-cli list");
 }
 
 function parseFlag(argList: string[], flag: string): string | undefined {
   const index = argList.indexOf(flag);
   if (index === -1) {
-    return undefined;
+    return;
   }
   return argList[index + 1];
 }
@@ -56,7 +62,7 @@ async function main(): Promise<void> {
         return prev !== "--path" && prev !== "--registry";
       });
 
-      await add(componentArgs, { path, force, registry });
+      await add(componentArgs, { force, path, registry });
       return;
     }
 
