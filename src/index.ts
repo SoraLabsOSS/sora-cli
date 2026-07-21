@@ -24,6 +24,15 @@ function printHelp(): void {
   console.log(
     "  --yes, -y             Skip the install confirmation prompt (for scripts/CI)"
   );
+  console.log(
+    "  --dry-run             Preview changes without writing files or installing packages"
+  );
+  console.log(
+    "  --silent, -s          Suppress per-file output, keep summary lines"
+  );
+  console.log(
+    "  --view                Print resolved file contents instead of writing them"
+  );
   console.log("  --json                Output as JSON (list command)");
   console.log("  --version, -v         Show the CLI version");
   console.log("  --help, -h            Show this help message");
@@ -65,6 +74,9 @@ async function main(): Promise<void> {
       const registry = parseFlag(rest, "--registry");
       const force = rest.includes("--force") || rest.includes("-f");
       const yes = rest.includes("--yes") || rest.includes("-y");
+      const dryRun = rest.includes("--dry-run");
+      const silent = rest.includes("--silent") || rest.includes("-s");
+      const view = rest.includes("--view");
 
       const componentArgs = rest.filter((arg, i) => {
         if (arg.startsWith("-")) {
@@ -74,7 +86,15 @@ async function main(): Promise<void> {
         return prev !== "--path" && prev !== "--registry";
       });
 
-      const ok = await add(componentArgs, { force, path, registry, yes });
+      const ok = await add(componentArgs, {
+        dryRun,
+        force,
+        path,
+        registry,
+        silent,
+        view,
+        yes,
+      });
       if (!ok) {
         process.exitCode = 1;
       }

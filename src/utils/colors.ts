@@ -22,3 +22,11 @@ export function error(message: string): void {
 export function bar(message?: string): void {
   console.log(pc.dim(message ? `  ${message}` : "│"));
 }
+
+export function highlight(text: string): string {
+  return pc.cyan(text);
+}
+
+export function fileHeader(path: string): void {
+  console.log(pc.bold(pc.cyan(`── ${path} ──`)));
+}

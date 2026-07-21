@@ -26,6 +26,9 @@ npx @soralabsoss/sora-cli add text-effect --path src/components/ui
 npx @soralabsoss/sora-cli add text-effect --force
 npx @soralabsoss/sora-cli add text-effect --registry ui   # default; other products register here later
 npx @soralabsoss/sora-cli add text-effect --yes           # skip the install confirmation, for scripts/CI
+npx @soralabsoss/sora-cli add text-effect --dry-run       # preview what would change, write nothing
+npx @soralabsoss/sora-cli add text-effect --silent        # only print summary lines, not per-file output
+npx @soralabsoss/sora-cli add text-effect --view          # print file contents instead of writing them
 npx @soralabsoss/sora-cli --version
 ```
 

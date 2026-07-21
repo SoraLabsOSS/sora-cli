@@ -8,12 +8,14 @@ import {
 } from "@clack/prompts";
 import { searchMultiselect } from "../prompts/search-multiselect.js";
 import type { PackageManager, ProjectConfig, RegistryItem } from "../types.js";
-import { bar, done, error, header } from "../utils/colors.js";
+import { bar, done, error, fileHeader } from "../utils/colors.js";
 import { detectConfig, getInstalledDependencyNames } from "../utils/detect.js";
 import {
   assertSafeDependencies,
   ensureUtils,
   installDependencies,
+  resolveTarget,
+  rewriteAliases,
   writeComponent,
 } from "../utils/install.js";
 import { getAvailableComponents } from "../utils/registry.js";
@@ -25,9 +27,12 @@ import {
 } from "../utils/tree.js";
 
 interface AddOptions {
+  dryRun?: boolean;
   force?: boolean;
   path?: string;
   registry?: string;
+  silent?: boolean;
+  view?: boolean;
   yes?: boolean;
 }
 
@@ -67,32 +72,36 @@ async function pickComponents(registry?: string): Promise<string[] | null> {
 
 async function resolveComponents(
   names: string[],
-  registry?: string
+  registry: string | undefined,
+  silent: boolean
 ): Promise<RegistryItem[] | null> {
   const loadingSpinner = spinner();
   loadingSpinner.start("Resolving dependencies...");
 
   const allComponents: RegistryItem[] = [];
-  const seen = new Set<string>();
+  // Shared across every resolveTree call below, so a dependency already
+  // resolved for an earlier requested component isn't fetched (or printed)
+  // again — separate from `collected`, which tracks what's already in
+  // allComponents, since resolveTree marks an item "seen" the moment it
+  // starts resolving it, before we get a chance to collect it here.
+  const fetchSeen = new Set<string>();
+  const collected = new Set<string>();
   const trees: Parameters<typeof printTree>[0][] = [];
 
-  // Sequential by design: `seen` must be updated between fetches so
-  // shared dependencies across the requested components aren't
-  // resolved (and printed) more than once.
   for (const name of names) {
-    if (seen.has(name)) {
+    if (fetchSeen.has(name)) {
       continue;
     }
 
     try {
       loadingSpinner.message(`Resolving ${name}...`);
-      // biome-ignore lint/performance/noAwaitInLoops: see comment above
-      const tree = await resolveTree(name, registry);
+      // biome-ignore lint/performance/noAwaitInLoops: sequential — fetchSeen must update between fetches
+      const tree = await resolveTree(name, registry, fetchSeen);
       const flat = flattenTree(tree);
 
       for (const item of flat) {
-        if (!seen.has(item.name)) {
-          seen.add(item.name);
+        if (!collected.has(item.name)) {
+          collected.add(item.name);
           allComponents.push(item);
         }
       }
@@ -106,12 +115,35 @@ async function resolveComponents(
   }
 
   loadingSpinner.stop("Resolved dependencies");
-  bar();
-  for (const tree of trees) {
-    printTree(tree);
+  if (!silent) {
+    bar();
+    for (const tree of trees) {
+      printTree(tree);
+    }
+    bar();
   }
-  bar();
   return allComponents;
+}
+
+/**
+ * Prints each resolved component's file content (already alias-rewritten,
+ * so it's what would actually land in the project) instead of writing
+ * anything — lets a user inspect a component before deciding to install it.
+ */
+function printComponentFiles(
+  allComponents: RegistryItem[],
+  config: ProjectConfig
+): void {
+  for (const item of allComponents) {
+    for (const file of item.files) {
+      if (!file.content) {
+        continue;
+      }
+      fileHeader(resolveTarget(file, item, config));
+      console.log(rewriteAliases(file.content, config.aliases));
+      console.log();
+    }
+  }
 }
 
 interface ConfirmedInstall {
@@ -179,15 +211,18 @@ function buildConfirmMessage(
 async function writeComponents(
   allComponents: RegistryItem[],
   config: ProjectConfig,
-  force: boolean
+  force: boolean,
+  dryRun: boolean,
+  silent: boolean
 ): Promise<void> {
   let overwriteAll = force;
+  const writtenLabel = dryRun ? "Would write" : "Written";
 
   // Sequential by design: writeComponent's own conflict prompts depend
   // on `overwriteAll`, which a prior file's "overwrite all" choice can flip.
   for (const item of allComponents) {
     // biome-ignore lint/performance/noAwaitInLoops: see comment above
-    const { written, skipped } = await writeComponent(
+    const { written, skipped, unchanged } = await writeComponent(
       item,
       config,
       overwriteAll,
@@ -208,24 +243,62 @@ async function writeComponents(
           overwriteAll = true;
         }
         return action as "overwrite" | "skip" | "all";
-      }
+      },
+      dryRun
     );
 
+    if (silent) {
+      continue;
+    }
     for (const file of written) {
-      done(`Written: ${file}`);
+      done(`${writtenLabel}: ${file}`);
     }
     for (const file of skipped) {
       done(`Skipped: ${file}`);
     }
+    for (const file of unchanged) {
+      bar(`Unchanged: ${file}`);
+    }
   }
+}
+
+function buildManualInstallCommands(
+  dependencies: string[],
+  devDependencies: string[],
+  packageManager: PackageManager
+): string[] {
+  const commands: string[] = [];
+  if (dependencies.length > 0) {
+    commands.push(`${packageManager} add ${dependencies.join(" ")}`);
+  }
+  if (devDependencies.length > 0) {
+    const devFlag = packageManager === "bun" ? "-d" : "-D";
+    commands.push(
+      `${packageManager} add ${devFlag} ${devDependencies.join(" ")}`
+    );
+  }
+  return commands;
 }
 
 function installNpmDependencies(
   dependencies: string[],
   devDependencies: string[],
-  packageManager: PackageManager
+  packageManager: PackageManager,
+  dryRun: boolean
 ): void {
   if (dependencies.length === 0 && devDependencies.length === 0) {
+    return;
+  }
+
+  if (dryRun) {
+    note(
+      buildManualInstallCommands(
+        dependencies,
+        devDependencies,
+        packageManager
+      ).join("\n"),
+      "Would install"
+    );
     return;
   }
 
@@ -245,18 +318,53 @@ function installNpmDependencies(
   }
 
   loadingSpinner.stop("Failed to install dependencies", 1);
+  note(
+    buildManualInstallCommands(
+      dependencies,
+      devDependencies,
+      packageManager
+    ).join("\n"),
+    "Run manually"
+  );
+}
 
-  const manualCommands: string[] = [];
-  if (dependencies.length > 0) {
-    manualCommands.push(`${packageManager} add ${dependencies.join(" ")}`);
+async function performInstall(
+  allComponents: RegistryItem[],
+  config: ProjectConfig,
+  install: ConfirmedInstall,
+  options: AddOptions
+): Promise<void> {
+  const dryRun = options.dryRun ?? false;
+  const silent = options.silent ?? false;
+  const { dependencies, devDependencies, needsUtils } = install;
+
+  if (needsUtils) {
+    const result = ensureUtils(config.srcDir, dryRun);
+    if (result === "written" && !silent) {
+      const label = dryRun ? "Would write" : "Written";
+      done(`${label}: ${config.srcDir ? `${config.srcDir}/` : ""}lib/utils.ts`);
+    }
   }
-  if (devDependencies.length > 0) {
-    const devFlag = packageManager === "bun" ? "-d" : "-D";
-    manualCommands.push(
-      `${packageManager} add ${devFlag} ${devDependencies.join(" ")}`
-    );
-  }
-  note(manualCommands.join("\n"), "Run manually");
+
+  await writeComponents(
+    allComponents,
+    config,
+    options.force ?? false,
+    dryRun,
+    silent
+  );
+  installNpmDependencies(
+    dependencies,
+    devDependencies,
+    config.packageManager,
+    dryRun
+  );
+
+  const totalComponents = allComponents.length;
+  const verb = dryRun ? "Would install" : "Done! Installed";
+  outro(
+    `${verb} ${totalComponents} component${totalComponents > 1 ? "s" : ""}.`
+  );
 }
 
 /**
@@ -269,14 +377,15 @@ export async function add(
   componentNames: string[],
   options: AddOptions
 ): Promise<boolean> {
-  header();
-
   const config = detectConfig();
   if (options.path) {
     config.componentPath = options.path;
   }
 
   done(`Detected: ${config.componentPath}/ (${config.packageManager})`);
+  if (options.dryRun) {
+    done("Dry run: no files will be written, no packages will be installed.");
+  }
   console.log();
 
   let selectedComponents = componentNames;
@@ -290,36 +399,29 @@ export async function add(
 
   const allComponents = await resolveComponents(
     selectedComponents,
-    options.registry
+    options.registry,
+    options.silent ?? false
   );
   if (!allComponents) {
     return false;
   }
 
+  if (options.view) {
+    printComponentFiles(allComponents, config);
+    const count = allComponents.length;
+    outro(`Viewed ${count} component${count > 1 ? "s" : ""}.`);
+    return true;
+  }
+
   const confirmResult = await collectDepsAndConfirm(
     allComponents,
-    options.yes ?? false
+    (options.yes ?? false) || (options.dryRun ?? false)
   );
   if (!confirmResult) {
     return true;
   }
-  const { dependencies, devDependencies, needsUtils } = confirmResult;
 
   console.log();
-
-  if (needsUtils) {
-    const result = ensureUtils(config.srcDir);
-    if (result === "written") {
-      done(`Written: ${config.srcDir ? `${config.srcDir}/` : ""}lib/utils.ts`);
-    }
-  }
-
-  await writeComponents(allComponents, config, options.force ?? false);
-  installNpmDependencies(dependencies, devDependencies, config.packageManager);
-
-  const totalComponents = allComponents.length;
-  outro(
-    `Done! ${totalComponents} component${totalComponents > 1 ? "s" : ""} installed.`
-  );
+  await performInstall(allComponents, config, confirmResult, options);
   return true;
 }

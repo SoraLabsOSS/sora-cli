@@ -1,5 +1,5 @@
 import type { RegistryItem } from "../types.js";
-import { bar } from "./colors.js";
+import { bar, highlight } from "./colors.js";
 import { fetchComponent } from "./registry.js";
 
 export interface ResolvedNode {
@@ -60,7 +60,7 @@ export function flattenTree(node: ResolvedNode): RegistryItem[] {
 
 export function printTree(node: ResolvedNode, depth = 0): void {
   const prefix = depth === 0 ? "" : `${"  ".repeat(depth)}└─ `;
-  bar(`${prefix}${node.item.name}`);
+  bar(`${prefix}${highlight(node.item.name)}`);
   for (const child of node.children) {
     printTree(child, depth + 1);
   }

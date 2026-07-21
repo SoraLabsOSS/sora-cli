@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { DEFAULT_COMPONENT_PATH } from "../constants.js";
 import type {
   ComponentAliases,
@@ -24,18 +24,24 @@ export function cn(...inputs: ClassValue[]) {
  * fetchable from a product registry — write it directly if the target
  * project doesn't already have it.
  */
-export function ensureUtils(srcDir: string): "written" | "exists" {
+export function ensureUtils(
+  srcDir: string,
+  dryRun = false
+): "written" | "exists" {
   const destPath = join(process.cwd(), srcDir, "lib", "utils.ts");
   if (existsSync(destPath)) {
     return "exists";
   }
-  mkdirSync(dirname(destPath), { recursive: true });
-  writeFileSync(destPath, CN_UTILS_CONTENT, "utf8");
+  if (!dryRun) {
+    mkdirSync(dirname(destPath), { recursive: true });
+    writeFileSync(destPath, CN_UTILS_CONTENT, "utf8");
+  }
   return "written";
 }
 
 interface WriteResult {
   skipped: string[];
+  unchanged: string[];
   written: string[];
 }
 
@@ -56,7 +62,10 @@ const LIB_IMPORT = /(["'])@\/lib\//g;
  * first and separately since `aliases.utils` may not just be
  * `${aliases.lib}/utils`.
  */
-function rewriteAliases(content: string, aliases: ComponentAliases): string {
+export function rewriteAliases(
+  content: string,
+  aliases: ComponentAliases
+): string {
   return content
     .replace(UTILS_IMPORT, `$1${aliases.utils}$2`)
     .replace(HOOKS_IMPORT, `$1${aliases.hooks}/`)
@@ -64,7 +73,37 @@ function rewriteAliases(content: string, aliases: ComponentAliases): string {
     .replace(LIB_IMPORT, `$1${aliases.lib}/`);
 }
 
-function resolveTarget(
+const CRLF = /\r\n/g;
+
+/**
+ * A file re-saved by a Windows editor/git config can pick up CRLF line
+ * endings even though its actual content is unchanged — normalize before
+ * comparing so that doesn't look like a real diff.
+ */
+function normalizeLineEndings(content: string): string {
+  return content.replace(CRLF, "\n");
+}
+
+/**
+ * A file's `target` comes from the registry (remote, untrusted input) and
+ * gets joined onto the project root — reject anything that would resolve
+ * outside it (e.g. a malicious "../../../.bashrc") before it's ever used
+ * for an existsSync/read/write.
+ */
+function assertSafeDestination(destPath: string, cwd: string): void {
+  const resolvedCwd = resolve(cwd);
+  const resolvedDest = resolve(destPath);
+  if (
+    resolvedDest !== resolvedCwd &&
+    !resolvedDest.startsWith(resolvedCwd + sep)
+  ) {
+    throw new Error(
+      `Registry returned a file path outside the project: "${destPath}"`
+    );
+  }
+}
+
+export function resolveTarget(
   file: RegistryItem["files"][number],
   item: RegistryItem,
   config: ProjectConfig
@@ -81,15 +120,77 @@ function resolveTarget(
   return file.target;
 }
 
+type FileWriteStatus = "skipped" | "unchanged" | "written";
+
+async function writeSingleFile(
+  content: string,
+  relativeTarget: string,
+  destPath: string,
+  aliases: ComponentAliases,
+  overwrite: boolean,
+  onConflict: (filename: string) => Promise<OverwriteChoice>,
+  dryRun: boolean
+): Promise<{ overwriteAll: boolean; status: FileWriteStatus }> {
+  const newContent = rewriteAliases(content, aliases);
+  const fileExists = existsSync(destPath);
+
+  if (fileExists) {
+    const currentContent = readFileSync(destPath, "utf8");
+    if (
+      normalizeLineEndings(currentContent) === normalizeLineEndings(newContent)
+    ) {
+      // Already up to date — don't prompt about it, but still report it
+      // so a re-run doesn't look like it silently did nothing.
+      return { overwriteAll: overwrite, status: "unchanged" };
+    }
+  }
+
+  let overwriteAll = overwrite;
+  // Dry runs never prompt or touch disk — a conflict just gets reported.
+  if (fileExists && !overwrite && !dryRun) {
+    const choice = await onConflict(relativeTarget);
+    if (choice === "skip") {
+      return { overwriteAll, status: "skipped" };
+    }
+    if (choice === "all") {
+      overwriteAll = true;
+    }
+  }
+
+  if (!dryRun) {
+    mkdirSync(dirname(destPath), { recursive: true });
+    writeFileSync(destPath, newContent, "utf8");
+  }
+  return { overwriteAll, status: "written" };
+}
+
 export async function writeComponent(
   item: RegistryItem,
   config: ProjectConfig,
   overwriteAll: boolean,
-  onConflict: (filename: string) => Promise<OverwriteChoice>
+  onConflict: (filename: string) => Promise<OverwriteChoice>,
+  dryRun = false
 ): Promise<WriteResult> {
   const written: string[] = [];
   const skipped: string[] = [];
+  const unchanged: string[] = [];
   let overwrite = overwriteAll;
+  const cwd = process.cwd();
+
+  // Validate every target before writing any of them, so one unsafe file
+  // in a multi-file component can't leave partial writes behind.
+  for (const file of item.files) {
+    if (!file.content) {
+      continue;
+    }
+    assertSafeDestination(join(cwd, resolveTarget(file, item, config)), cwd);
+  }
+
+  const results: Record<FileWriteStatus, string[]> = {
+    skipped,
+    unchanged,
+    written,
+  };
 
   // Sequential by design: each conflict prompt depends on the previous
   // choice ("overwrite all" must apply to every file after it).
@@ -99,36 +200,23 @@ export async function writeComponent(
     }
 
     const relativeTarget = resolveTarget(file, item, config);
-    const destPath = join(process.cwd(), relativeTarget);
-    const newContent = rewriteAliases(file.content, config.aliases);
-    const fileExists = existsSync(destPath);
+    const destPath = join(cwd, relativeTarget);
 
-    if (fileExists) {
-      const currentContent = readFileSync(destPath, "utf8");
-      if (currentContent === newContent) {
-        // Already up to date — don't nag the user about it.
-        continue;
-      }
-    }
-
-    if (fileExists && !overwrite) {
-      // biome-ignore lint/performance/noAwaitInLoops: prompts must run one at a time, not in parallel
-      const choice = await onConflict(relativeTarget);
-      if (choice === "skip") {
-        skipped.push(relativeTarget);
-        continue;
-      }
-      if (choice === "all") {
-        overwrite = true;
-      }
-    }
-
-    mkdirSync(dirname(destPath), { recursive: true });
-    writeFileSync(destPath, newContent, "utf8");
-    written.push(relativeTarget);
+    // biome-ignore lint/performance/noAwaitInLoops: prompts must run one at a time, not in parallel
+    const result = await writeSingleFile(
+      file.content,
+      relativeTarget,
+      destPath,
+      config.aliases,
+      overwrite,
+      onConflict,
+      dryRun
+    );
+    overwrite = result.overwriteAll;
+    results[result.status].push(relativeTarget);
   }
 
-  return { skipped, written };
+  return { skipped, unchanged, written };
 }
 
 const INSTALL_ARGS: Record<PackageManager, { add: string; dev: string }> = {
