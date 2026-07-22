@@ -1,3 +1,5 @@
+import { existsSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { add } from "@/commands/add.js";
 import { diff } from "@/commands/diff.js";
 import { list } from "@/commands/list.js";
@@ -21,6 +23,9 @@ function printHelp(): void {
   );
   console.log();
   console.log("Options:");
+  console.log(
+    "  --cwd, -c <path>       Run as if started in <path> (for monorepos, e.g. packages/ui)"
+  );
   console.log("  --path <path>         Custom component install path");
   console.log(
     "  --registry <name|url> Product registry key (default: ui) or a full registry URL"
@@ -62,18 +67,47 @@ function printHelp(): void {
     "  npx @soralabsoss/sora-cli add some-item --registry https://your-registry.example.com   # any shadcn-compatible registry"
   );
   console.log("  npx @soralabsoss/sora-cli diff text-effect");
+  console.log(
+    "  npx @soralabsoss/sora-cli add card --cwd packages/ui       # install into a monorepo workspace"
+  );
 }
 
-function parseFlag(argList: string[], flag: string): string | undefined {
-  const index = argList.indexOf(flag);
-  if (index === -1) {
-    return;
+function parseFlag(argList: string[], ...flags: string[]): string | undefined {
+  for (const flag of flags) {
+    const index = argList.indexOf(flag);
+    if (index !== -1) {
+      return argList[index + 1];
+    }
   }
-  return argList[index + 1];
+}
+
+/**
+ * Resolves and chdir's into the target directory before any command logic
+ * runs, so detectConfig() (and every other relative fs/spawn call downstream)
+ * transparently operates against that directory — mirrors how a monorepo
+ * workspace like `packages/ui` gets its own tsconfig/components.json read
+ * instead of the repo root's.
+ */
+function applyCwd(cwd: string | undefined): boolean {
+  if (!cwd) {
+    return true;
+  }
+  const resolved = resolve(cwd);
+  if (!(existsSync(resolved) && statSync(resolved).isDirectory())) {
+    error(`Directory not found: ${cwd}`);
+    return false;
+  }
+  process.chdir(resolved);
+  return true;
 }
 
 async function runAdd(): Promise<void> {
   const rest = args.slice(1);
+  const cwd = parseFlag(rest, "--cwd", "-c");
+  if (!applyCwd(cwd)) {
+    process.exitCode = 1;
+    return;
+  }
   const path = parseFlag(rest, "--path");
   const registry = parseFlag(rest, "--registry");
   const force = rest.includes("--force") || rest.includes("-f");
@@ -87,7 +121,12 @@ async function runAdd(): Promise<void> {
       return false;
     }
     const prev = rest[i - 1];
-    return prev !== "--path" && prev !== "--registry";
+    return (
+      prev !== "--path" &&
+      prev !== "--registry" &&
+      prev !== "--cwd" &&
+      prev !== "-c"
+    );
   });
 
   const ok = await add(componentArgs, {
@@ -113,6 +152,11 @@ async function runList(): Promise<void> {
 
 async function runDiff(): Promise<void> {
   const rest = args.slice(1);
+  const cwd = parseFlag(rest, "--cwd", "-c");
+  if (!applyCwd(cwd)) {
+    process.exitCode = 1;
+    return;
+  }
   const path = parseFlag(rest, "--path");
   const registry = parseFlag(rest, "--registry");
 
@@ -121,7 +165,12 @@ async function runDiff(): Promise<void> {
       return false;
     }
     const prev = rest[i - 1];
-    return prev !== "--path" && prev !== "--registry";
+    return (
+      prev !== "--path" &&
+      prev !== "--registry" &&
+      prev !== "--cwd" &&
+      prev !== "-c"
+    );
   });
 
   const ok = await diff(componentArgs, { path, registry });
