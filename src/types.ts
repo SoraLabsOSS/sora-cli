@@ -45,6 +45,12 @@ export interface ComponentAliases {
 }
 
 export interface ProjectConfig {
+  /**
+   * False when no tsconfig/jsconfig `paths` entry or `components.json` was
+   * found, so `aliases` is just the "@/..." default rather than something
+   * actually wired up to resolve at runtime — see `add.ts`'s Astro warning.
+   */
+  aliasConfigured: boolean;
   aliases: ComponentAliases;
   componentPath: string;
   packageManager: PackageManager;

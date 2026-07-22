@@ -74,7 +74,7 @@ function detectPackageManager(): PackageManager {
   return "npm";
 }
 
-function detectAlias(): { alias: string; srcDir: string } {
+function detectAlias(): { alias: string; configured: boolean; srcDir: string } {
   for (const file of ["tsconfig.json", "jsconfig.json"]) {
     if (!existsSync(file)) {
       continue;
@@ -98,13 +98,35 @@ function detectAlias(): { alias: string; srcDir: string } {
             .replace(LEADING_DOT_SLASH, "") ?? "";
         const srcDir =
           target === "src" || target.startsWith("src/") ? "src" : "";
-        return { alias, srcDir };
+        return { alias, configured: true, srcDir };
       }
     } catch {
       // malformed config, fall through to default
     }
   }
-  return { alias: "@", srcDir: existsSync("src") ? "src" : "" };
+  return {
+    alias: "@",
+    configured: false,
+    srcDir: existsSync("src") ? "src" : "",
+  };
+}
+
+const ASTRO_CONFIG_FILES = [
+  "astro.config.mjs",
+  "astro.config.ts",
+  "astro.config.js",
+  "astro.config.cjs",
+];
+
+/**
+ * Astro's Vite-based bundler doesn't pick up tsconfig `paths` on its own —
+ * a project needs an explicit Vite alias (or the `vite-tsconfig-paths`
+ * plugin) for "@/..." imports to actually resolve at build time. Detected
+ * separately from `aliasConfigured` so `add.ts` can warn when a component's
+ * rewritten imports would land in an Astro project with no alias wired up.
+ */
+export function isAstroProject(): boolean {
+  return ASTRO_CONFIG_FILES.some((file) => existsSync(file));
 }
 
 /**
@@ -152,7 +174,7 @@ export function getInstalledDependencyNames(): Set<string> {
 }
 
 export function detectConfig(): ProjectConfig {
-  const { alias, srcDir } = detectAlias();
+  const { alias, configured, srcDir } = detectAlias();
   const fromComponentsJson = readComponentsJsonAliases();
 
   const aliases: ComponentAliases = {
@@ -163,6 +185,7 @@ export function detectConfig(): ProjectConfig {
   };
 
   return {
+    aliasConfigured: configured || fromComponentsJson !== null,
     aliases,
     componentPath: srcDir
       ? `${srcDir}/${DEFAULT_COMPONENT_PATH}`

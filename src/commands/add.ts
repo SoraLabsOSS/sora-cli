@@ -8,8 +8,19 @@ import {
 } from "@clack/prompts";
 import { searchMultiselect } from "@/prompts/search-multiselect.js";
 import type { PackageManager, ProjectConfig, RegistryItem } from "@/types.js";
-import { bar, done, error, fileHeader, sanitize } from "@/utils/colors.js";
-import { detectConfig, getInstalledDependencyNames } from "@/utils/detect.js";
+import {
+  bar,
+  done,
+  error,
+  fileHeader,
+  sanitize,
+  warn,
+} from "@/utils/colors.js";
+import {
+  detectConfig,
+  getInstalledDependencyNames,
+  isAstroProject,
+} from "@/utils/detect.js";
 import {
   assertSafeDependencies,
   ensureUtils,
@@ -400,6 +411,11 @@ export async function add(
 
   done(`Detected: ${config.componentPath}/ (${config.packageManager})`);
   done(`Registry: ${registryUrl}`);
+  if (!config.aliasConfigured && isAstroProject()) {
+    warn(
+      `No "${config.aliases.components.split("/")[0]}/*" path alias found in tsconfig.json/jsconfig.json — Astro's Vite bundler won't resolve it on its own. Add a matching "compilerOptions.paths" entry plus a Vite alias (or install vite-tsconfig-paths) before installing, or the written imports won't resolve.`
+    );
+  }
   if (options.dryRun) {
     done("Dry run: no files will be written, no packages will be installed.");
   }

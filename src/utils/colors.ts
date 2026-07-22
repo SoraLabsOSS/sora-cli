@@ -37,6 +37,10 @@ export function error(message: string): void {
   console.error(pc.red("✗"), message);
 }
 
+export function warn(message: string): void {
+  console.error(pc.yellow("⚠"), message);
+}
+
 export function bar(message?: string): void {
   console.log(pc.dim(message ? `  ${message}` : "│"));
 }
