@@ -11,7 +11,7 @@ const TRAILING_GLOB = /\/\*$/;
 const LEADING_DOT_SLASH = /^\.\//;
 const PACKAGE_MANAGER_PREFIX = /^([a-z]+)@/;
 
-const LOCKFILES: [string, PackageManager][] = [
+export const LOCKFILES: [string, PackageManager][] = [
   ["bun.lock", "bun"],
   ["bun.lockb", "bun"],
   ["pnpm-lock.yaml", "pnpm"],

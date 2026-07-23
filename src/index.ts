@@ -2,6 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { add } from "@/commands/add.js";
 import { diff } from "@/commands/diff.js";
+import { doctor } from "@/commands/doctor.js";
 import { list } from "@/commands/list.js";
 import { error, header } from "@/utils/colors.js";
 import { printUpdateNotice, startUpdateCheck } from "@/utils/update-check.js";
@@ -21,6 +22,7 @@ function printHelp(): void {
   console.log(
     "  diff <components...>  Compare installed components against the registry"
   );
+  console.log("  doctor                Diagnose common project setup issues");
   console.log();
   console.log("Options:");
   console.log(
@@ -45,7 +47,7 @@ function printHelp(): void {
   console.log(
     "  --view                Print resolved file contents instead of writing them"
   );
-  console.log("  --json                Output as JSON (list command)");
+  console.log("  --json                Output as JSON (list, doctor commands)");
   console.log("  --version, -v         Show the CLI version");
   console.log("  --help, -h            Show this help message");
   console.log();
@@ -70,6 +72,8 @@ function printHelp(): void {
   console.log(
     "  npx @soralabsoss/sora-cli add card --cwd packages/ui       # install into a monorepo workspace"
   );
+  console.log("  npx @soralabsoss/sora-cli doctor");
+  console.log("  npx @soralabsoss/sora-cli doctor --json");
 }
 
 function parseFlag(argList: string[], ...flags: string[]): string | undefined {
@@ -179,6 +183,23 @@ async function runDiff(): Promise<void> {
   }
 }
 
+async function runDoctor(): Promise<void> {
+  const rest = args.slice(1);
+  const cwd = parseFlag(rest, "--cwd", "-c");
+  if (!applyCwd(cwd)) {
+    process.exitCode = 1;
+    return;
+  }
+  const path = parseFlag(rest, "--path");
+  const registry = parseFlag(rest, "--registry");
+  const json = rest.includes("--json");
+
+  const ok = await doctor(__VERSION__, { json, path, registry });
+  if (!ok) {
+    process.exitCode = 1;
+  }
+}
+
 async function runCommand(): Promise<void> {
   if (command === "add") {
     await runAdd();
@@ -192,6 +213,11 @@ async function runCommand(): Promise<void> {
 
   if (command === "diff") {
     await runDiff();
+    return;
+  }
+
+  if (command === "doctor") {
+    await runDoctor();
     return;
   }
 
